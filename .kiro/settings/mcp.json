@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "uvx",
+      "args": ["mcp-server-filesystem@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": ["read_file", "list_directory"]
+    },
+    "git": {
+      "command": "uvx", 
+      "args": ["mcp-server-git"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": ["git_status", "git_log", "git_diff"]
+    },
+    "postgres": {
+      "command": "uvx",
+      "args": ["mcp-server-postgres"],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://localhost:5432/ai_learning_platform_dev",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": true,
+      "autoApprove": ["query", "describe_table"]
+    },
+    "web-search": {
+      "command": "uvx",
+      "args": ["mcp-server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": true,
+      "autoApprove": ["search"]
+    }
+  }
+}

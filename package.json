@@ -1,0 +1,37 @@
+{
+  "name": "lusilearn-ai",
+  "version": "1.0.0",
+  "description": "AI-enhanced learning platform with personalized education experiences",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.10.12",
+    "turbo": "^1.10.12",
+    "prettier": "^3.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "eslint": "^8.50.0",
+    "eslint-config-prettier": "^9.0.0",
+    "typescript": "^5.2.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.5",
+    "ts-jest": "^29.1.1"
+  },
+  "packageManager": "npm@9.8.1",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

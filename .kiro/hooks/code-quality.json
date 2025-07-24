@@ -1,0 +1,39 @@
+{
+  "name": "Code Quality Check",
+  "description": "Run linting and formatting checks on code changes",
+  "trigger": {
+    "type": "file_save",
+    "patterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.py"]
+  },
+  "actions": [
+    {
+      "type": "command",
+      "command": "npx eslint ${file} --fix",
+      "condition": "file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.js') || file.endsWith('.jsx')",
+      "workingDirectory": "."
+    },
+    {
+      "type": "command",
+      "command": "npx prettier ${file} --write",
+      "condition": "file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.js') || file.endsWith('.jsx')",
+      "workingDirectory": "."
+    },
+    {
+      "type": "command",
+      "command": "black ${file}",
+      "condition": "file.endsWith('.py')",
+      "workingDirectory": "./apps/ai-service"
+    },
+    {
+      "type": "command",
+      "command": "flake8 ${file}",
+      "condition": "file.endsWith('.py')",
+      "workingDirectory": "./apps/ai-service"
+    }
+  ],
+  "settings": {
+    "autoRun": true,
+    "showOutput": false,
+    "notifyOnFailure": true
+  }
+}

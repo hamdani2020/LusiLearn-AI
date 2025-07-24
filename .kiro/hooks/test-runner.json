@@ -1,0 +1,27 @@
+{
+  "name": "Run Tests on Save",
+  "description": "Automatically run relevant tests when code files are saved",
+  "trigger": {
+    "type": "file_save",
+    "patterns": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.py"]
+  },
+  "actions": [
+    {
+      "type": "command",
+      "command": "npm test -- --findRelatedTests ${file}",
+      "condition": "file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.js') || file.endsWith('.jsx')",
+      "workingDirectory": "."
+    },
+    {
+      "type": "command", 
+      "command": "python -m pytest tests/ -v",
+      "condition": "file.endsWith('.py')",
+      "workingDirectory": "./apps/ai-service"
+    }
+  ],
+  "settings": {
+    "autoRun": true,
+    "showOutput": true,
+    "notifyOnFailure": true
+  }
+}

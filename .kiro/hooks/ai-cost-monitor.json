@@ -1,0 +1,23 @@
+{
+  "name": "AI Cost Monitor",
+  "description": "Monitor and alert on AI API usage costs",
+  "trigger": {
+    "type": "manual",
+    "buttonText": "Check AI Costs"
+  },
+  "actions": [
+    {
+      "type": "agent_execution",
+      "prompt": "Check the current AI API usage and costs for our learning platform. Look at OpenAI API usage, vector database costs, and any other AI services. Provide a summary of current usage and alert if we're approaching budget limits. Check logs in apps/ai-service/logs/ for usage patterns.",
+      "context": [
+        "apps/ai-service/src/services/",
+        "apps/api/src/services/ai-integration.ts",
+        ".env.example"
+      ]
+    }
+  ],
+  "settings": {
+    "showOutput": true,
+    "category": "monitoring"
+  }
+}

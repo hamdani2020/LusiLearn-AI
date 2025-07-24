@@ -1,0 +1,25 @@
+{
+  "name": "Update Learning Analytics",
+  "description": "Regenerate learning analytics and recommendations when user data changes",
+  "trigger": {
+    "type": "file_save",
+    "patterns": ["**/models/user-progress.ts", "**/models/learning-session.ts", "**/services/analytics.ts"]
+  },
+  "actions": [
+    {
+      "type": "agent_execution",
+      "prompt": "The learning analytics models have been updated. Please review the changes and update any related recommendation algorithms, database migrations, and API endpoints. Ensure the AI service is updated to handle the new data structures. Also update any related tests and documentation.",
+      "context": [
+        "apps/api/src/models/",
+        "apps/ai-service/src/models/",
+        "packages/database/migrations/",
+        "apps/api/src/services/analytics.ts"
+      ]
+    }
+  ],
+  "settings": {
+    "autoRun": false,
+    "showOutput": true,
+    "category": "ai-learning"
+  }
+}
