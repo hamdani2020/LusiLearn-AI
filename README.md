@@ -2,7 +2,7 @@
 
 AI-enhanced educational platform for personalized learning experiences across K-12, college, and professional development.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -38,7 +38,7 @@ AI-enhanced educational platform for personalized learning experiences across K-
    - Redis: localhost:6379
    - Elasticsearch: http://localhost:9200
 
-## 🏗️ Architecture
+## Architecture
 
 This is a monorepo containing:
 
@@ -52,7 +52,7 @@ This is a monorepo containing:
 - **config**: Shared configuration utilities
 - **ui**: Reusable UI components (Shadcn/ui + Tailwind)
 
-## 🛠️ Development
+## Development
 
 ### Available Scripts
 
@@ -94,7 +94,7 @@ lusilearn-ai/
 └── package.json            # Root package configuration
 ```
 
-## 🧪 Testing
+## Testing
 
 The project uses Jest for unit and integration testing:
 
@@ -112,7 +112,7 @@ npm run test -- --watch
 npm run test --workspace=packages/shared-types
 ```
 
-## 🐳 Docker Development
+## Docker Development
 
 Start all services with Docker Compose:
 
@@ -130,7 +130,7 @@ docker-compose down
 docker-compose up --build
 ```
 
-## 📝 Environment Variables
+## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
 
@@ -140,7 +140,7 @@ Copy `.env.example` to `.env` and configure:
 - **External APIs**: YouTube, Khan Academy, etc.
 - **Security**: JWT secrets and encryption keys
 
-## 🔧 Configuration
+## Configuration
 
 The project uses a shared configuration system in `packages/config`:
 
@@ -149,7 +149,7 @@ The project uses a shared configuration system in `packages/config`:
 - AI service settings
 - Application constants
 
-## 📚 Spec-Driven Development
+## Spec-Driven Development
 
 This project uses a spec-driven development approach:
 
@@ -157,7 +157,7 @@ This project uses a spec-driven development approach:
 2. Open `tasks.md` and click "Start task" on any task to begin implementation
 3. Follow the development standards in `.kiro/steering/development-standards.md`
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -166,6 +166,6 @@ This project uses a spec-driven development approach:
 5. Ensure all tests pass
 6. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
