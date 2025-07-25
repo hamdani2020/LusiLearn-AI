@@ -80,9 +80,51 @@ export const LearningPreferencesSchema = z.object({
   difficultyPreference: z.nativeEnum(DifficultyPreference)
 });
 
+export const SkillAssessmentSchema = z.object({
+  subject: z.string(),
+  level: z.number().min(1).max(10),
+  confidence: z.number().min(1).max(10),
+  lastAssessed: z.date()
+});
+
+export const PrivacySettingsSchema = z.object({
+  profileVisibility: z.enum(['public', 'friends', 'private']),
+  allowPeerMatching: z.boolean(),
+  shareProgressData: z.boolean(),
+  allowDataCollection: z.boolean()
+});
+
+export const ParentalControlsSchema = z.object({
+  parentEmail: EmailSchema,
+  restrictedInteractions: z.boolean(),
+  contentFiltering: z.enum(['strict', 'moderate', 'minimal']),
+  timeRestrictions: z.object({
+    dailyLimit: z.number().min(0),
+    allowedHours: z.object({
+      start: z.string(),
+      end: z.string()
+    })
+  })
+});
+
+export const UserProfileSchema = z.object({
+  id: IdSchema,
+  email: EmailSchema,
+  username: z.string().min(3).max(30),
+  demographics: UserDemographicsSchema,
+  learningPreferences: LearningPreferencesSchema,
+  skillProfile: z.array(SkillAssessmentSchema),
+  privacySettings: PrivacySettingsSchema,
+  parentalControls: ParentalControlsSchema.optional(),
+  isVerified: z.boolean(),
+  createdAt: z.date(),
+  updatedAt: z.date()
+});
+
 export const CreateUserRequestSchema = z.object({
   email: EmailSchema,
   username: z.string().min(3).max(30),
   demographics: UserDemographicsSchema,
-  learningPreferences: LearningPreferencesSchema
+  learningPreferences: LearningPreferencesSchema,
+  parentalControls: ParentalControlsSchema.optional()
 });

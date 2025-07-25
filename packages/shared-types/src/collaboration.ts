@@ -116,6 +116,95 @@ export interface ModerationResult {
 }
 
 // Validation schemas
+export const GroupParticipantSchema = z.object({
+  userId: z.string(),
+  role: z.enum(['member', 'moderator', 'admin']),
+  joinedAt: z.date(),
+  isActive: z.boolean(),
+  contributionScore: z.number().min(0).max(100)
+});
+
+export const CollaborationActivitySchema = z.object({
+  id: z.string(),
+  type: z.nativeEnum(CollaborationActivityType),
+  title: z.string(),
+  description: z.string(),
+  participants: z.array(z.string()),
+  startTime: z.date(),
+  endTime: z.date().optional(),
+  isCompleted: z.boolean()
+});
+
+export const StudyGroupSchema = z.object({
+  id: z.string(),
+  name: z.string().min(3).max(50),
+  description: z.string().max(500),
+  topic: z.string(),
+  subject: z.string(),
+  participants: z.array(GroupParticipantSchema),
+  settings: z.object({
+    maxSize: z.number().min(2).max(8),
+    ageRestrictions: z.array(z.nativeEnum(AgeRange)),
+    moderationLevel: z.nativeEnum(ModerationLevel),
+    privacy: z.nativeEnum(PrivacyLevel),
+    requiresApproval: z.boolean()
+  }),
+  activities: z.array(CollaborationActivitySchema),
+  isActive: z.boolean(),
+  createdAt: z.date(),
+  updatedAt: z.date()
+});
+
+export const PeerMatchSchema = z.object({
+  userId: z.string(),
+  compatibilityScore: z.number().min(0).max(100),
+  sharedInterests: z.array(z.string()),
+  complementarySkills: z.array(z.string()),
+  matchReason: z.string(),
+  estimatedCollaborationSuccess: z.number().min(0).max(100)
+});
+
+export const CollaborationPreferencesSchema = z.object({
+  preferredGroupSize: z.number().min(2).max(8),
+  communicationStyle: z.enum(['formal', 'casual', 'mixed']),
+  availableHours: z.object({
+    start: z.string(),
+    end: z.string(),
+    timezone: z.string()
+  }),
+  subjects: z.array(z.string()),
+  collaborationTypes: z.array(z.nativeEnum(CollaborationActivityType))
+});
+
+export const CollaborationSessionSchema = z.object({
+  id: z.string(),
+  groupId: z.string(),
+  participants: z.array(z.string()),
+  topic: z.string(),
+  duration: z.number().min(0),
+  activities: z.array(z.object({
+    type: z.string(),
+    duration: z.number(),
+    participants: z.array(z.string())
+  })),
+  outcomes: z.array(z.string()),
+  satisfaction: z.array(z.object({
+    userId: z.string(),
+    rating: z.number().min(1).max(5),
+    feedback: z.string().optional()
+  })),
+  createdAt: z.date(),
+  updatedAt: z.date()
+});
+
+export const ModerationResultSchema = z.object({
+  isAppropriate: z.boolean(),
+  flaggedContent: z.array(z.string()).optional(),
+  severity: z.enum(['low', 'medium', 'high']),
+  action: z.enum(['none', 'warning', 'timeout', 'ban']),
+  reason: z.string().optional()
+});
+
 export const MatchingCriteriaSchema = z.object({
   subjects: z.array(z.string()),
   skillLevels: z.array(z.string()),

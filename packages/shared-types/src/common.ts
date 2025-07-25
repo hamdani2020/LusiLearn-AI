@@ -87,3 +87,24 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+// Additional validation schemas
+export const BaseEntitySchema = z.object({
+  id: IdSchema,
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema
+});
+
+export const PaginationParamsSchema = z.object({
+  page: z.number().min(1),
+  limit: z.number().min(1).max(100),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional()
+});
+
+export const ApiResponseSchema = <T extends z.ZodType>(dataSchema: T) => z.object({
+  data: dataSchema,
+  message: z.string().optional(),
+  error: z.string().optional(),
+  timestamp: TimestampSchema
+});
