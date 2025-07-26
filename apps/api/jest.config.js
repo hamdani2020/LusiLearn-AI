@@ -10,7 +10,9 @@ module.exports = {
     '!src/index.ts'
   ],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@lusilearn/config$': '<rootDir>/../../packages/config/src',
+    '^@lusilearn/shared-types$': '<rootDir>/../../packages/shared-types/src'
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 };

@@ -100,7 +100,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: npm run dev --workspace=apps/api
+    command: sh -c "npm run build --workspace=packages/config && npm run build --workspace=packages/shared-types && cd apps/api && npx ts-node --transpile-only src/index.ts"
 
   # AI Service (Python/FastAPI)
   ai-service:
