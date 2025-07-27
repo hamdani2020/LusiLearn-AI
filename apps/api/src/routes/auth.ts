@@ -96,7 +96,6 @@ router.post('/register', authLimiter, async (req, res, next) => {
   try {
     const validatedData = RegisterSchema.parse(req.body);
 
-    // ✅ Cast here to fix the TS error
     const result = await authService.register(validatedData as RegisterRequest);
 
     logger.info('User registration successful:', { 
