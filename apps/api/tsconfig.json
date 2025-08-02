@@ -16,11 +16,13 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": false
   },
   "include": [
     "src/**/*",
-    "../../packages/*/src/**/*"
+    "../../packages/shared-types/src/**/*",
+    "../../packages/config/src/**/*"
   ],
   "exclude": [
     "node_modules",
