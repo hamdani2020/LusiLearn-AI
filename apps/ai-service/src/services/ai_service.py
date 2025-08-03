@@ -15,6 +15,7 @@ from ..utils.exceptions import AIServiceError, ConfigurationError
 from .openai_service import OpenAIService
 from .gemini_service import GeminiService
 from .learning_path_service import LearningPathAlgorithm
+from .content_recommendation_service import ContentRecommendationEngine, RecommendationStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,18 @@ class AIService:
         self.openai_service = OpenAIService()
         self.gemini_service = GeminiService()
         self.learning_path_algorithm = LearningPathAlgorithm()
+        self.content_recommendation_engine = ContentRecommendationEngine()
         self.current_provider = AIProvider(settings.AI_PROVIDER.lower())
         
     async def initialize(self):
-        """Initialize both AI services."""
+        """Initialize all AI services."""
         try:
-            # Initialize both services
+            # Initialize both AI provider services
             await self.openai_service.initialize()
             await self.gemini_service.initialize()
+            
+            # Initialize content recommendation engine
+            await self.content_recommendation_engine.initialize()
             
             logger.info(f"AI service initialized with provider: {self.current_provider}")
             
@@ -354,9 +359,126 @@ class AIService:
     async def get_content_recommendations(
         self, 
         request: ContentRecommendationRequest,
-        provider: Optional[str] = None
+        provider: Optional[str] = None,
+        strategy: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Get content recommendations using specified or current provider."""
+        """Get content recommendations using AI providers enhanced with algorithmic recommendations."""
+        try:
+            # First, try to get AI-enhanced recommendations from providers
+            ai_recommendations = await self._get_ai_content_recommendations(request, provider)
+            
+            # Get algorithmic recommendations using the recommendation engine
+            algorithmic_recommendations = await self.get_algorithmic_content_recommendations(
+                request, strategy
+            )
+            
+            # If AI providers are available, combine with algorithmic recommendations
+            if ai_recommendations and not any(rec.get("fallback_used") for rec in ai_recommendations):
+                logger.info("Combining AI and algorithmic recommendations")
+                return await self._combine_recommendations(ai_recommendations, algorithmic_recommendations)
+            
+            # If AI providers failed, use pure algorithmic approach
+            logger.info("Using algorithmic content recommendations")
+            return [rec.dict() for rec in algorithmic_recommendations]
+            
+        except Exception as e:
+            logger.error(f"Error in content recommendations: {e}")
+            
+            # Final fallback to algorithmic approach
+            if settings.ENABLE_FALLBACKS:
+                logger.info("Using fallback algorithmic recommendations")
+                algorithmic_recs = await self.get_algorithmic_content_recommendations(request)
+                return [rec.dict() for rec in algorithmic_recs]
+            
+            raise AIServiceError(f"Failed to get recommendations: {e}")
+    
+    async def get_algorithmic_content_recommendations(
+        self,
+        request: ContentRecommendationRequest,
+        strategy: Optional[str] = None
+    ) -> List['ContentRecommendation']:
+        """Get content recommendations using pure algorithmic approach."""
+        try:
+            # Convert request to user profile if needed
+            user_profile = self._convert_recommendation_request_to_profile(request)
+            
+            # Determine strategy
+            rec_strategy = RecommendationStrategy.HYBRID
+            if strategy:
+                try:
+                    rec_strategy = RecommendationStrategy(strategy.lower())
+                except ValueError:
+                    logger.warning(f"Invalid strategy {strategy}, using hybrid")
+            
+            # Get recommendations from the engine
+            recommendations = await self.content_recommendation_engine.get_personalized_recommendations(
+                request=request,
+                user_profile=user_profile,
+                strategy=rec_strategy,
+                max_recommendations=10
+            )
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error in algorithmic recommendations: {e}")
+            # Return empty list as fallback
+            return []
+    
+    async def update_content_interaction(
+        self,
+        user_id: str,
+        content_id: str,
+        interaction_score: float
+    ):
+        """Update user interaction data for collaborative filtering."""
+        try:
+            await self.content_recommendation_engine.update_user_interaction(
+                user_id=user_id,
+                content_id=content_id,
+                interaction_score=interaction_score
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating content interaction: {e}")
+    
+    async def update_content_success_rate(
+        self,
+        content_id: str,
+        success_rate: float
+    ):
+        """Update peer success rate for content."""
+        try:
+            await self.content_recommendation_engine.update_peer_success_rate(
+                content_id=content_id,
+                success_rate=success_rate
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating content success rate: {e}")
+    
+    async def get_recommendation_analytics(
+        self,
+        user_id: str,
+        time_period: int = 30
+    ) -> Dict[str, Any]:
+        """Get analytics about recommendations for a user."""
+        try:
+            return await self.content_recommendation_engine.get_recommendation_analytics(
+                user_id=user_id,
+                time_period=time_period
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting recommendation analytics: {e}")
+            return {}
+    
+    async def _get_ai_content_recommendations(
+        self, 
+        request: ContentRecommendationRequest,
+        provider: Optional[str] = None
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Get AI-enhanced recommendations from providers."""
         try:
             # Use specified provider or current default
             active_provider = AIProvider(provider.lower()) if provider else self.current_provider
@@ -375,13 +497,13 @@ class AIService:
             return result
             
         except Exception as e:
-            logger.error(f"Error getting recommendations with {active_provider}: {e}")
+            logger.warning(f"AI provider {active_provider} failed for recommendations: {e}")
             
             # Try fallback to other provider if current one fails
             if settings.ENABLE_FALLBACKS:
                 try:
                     fallback_provider = AIProvider.GEMINI if active_provider == AIProvider.OPENAI else AIProvider.OPENAI
-                    logger.info(f"Trying fallback provider: {fallback_provider}")
+                    logger.info(f"Trying fallback provider for recommendations: {fallback_provider}")
                     
                     if fallback_provider == AIProvider.OPENAI:
                         result = await self.openai_service.get_content_recommendations(request)
@@ -396,9 +518,71 @@ class AIService:
                     return result
                     
                 except Exception as fallback_error:
-                    logger.error(f"Fallback provider also failed: {fallback_error}")
+                    logger.warning(f"Fallback provider also failed for recommendations: {fallback_error}")
             
-            raise AIServiceError(f"Failed to get recommendations: {e}")
+            return None
+    
+    async def _combine_recommendations(
+        self,
+        ai_recommendations: List[Dict[str, Any]],
+        algorithmic_recommendations: List['ContentRecommendation']
+    ) -> List[Dict[str, Any]]:
+        """Combine AI and algorithmic recommendations."""
+        try:
+            # Convert algorithmic recommendations to dict format
+            algo_recs_dict = [rec.dict() for rec in algorithmic_recommendations]
+            
+            # Create a combined list, giving priority to AI recommendations
+            combined = []
+            
+            # Add AI recommendations first (up to 60% of total)
+            ai_count = min(len(ai_recommendations), 6)
+            combined.extend(ai_recommendations[:ai_count])
+            
+            # Add algorithmic recommendations to fill remaining slots
+            algo_count = min(len(algo_recs_dict), 10 - ai_count)
+            
+            # Avoid duplicates by checking content IDs
+            ai_content_ids = {rec.get("content_id") for rec in combined}
+            
+            for rec in algo_recs_dict:
+                if len(combined) >= 10:
+                    break
+                if rec.get("content_id") not in ai_content_ids:
+                    rec["source"] = "algorithmic_enhanced"
+                    combined.append(rec)
+            
+            return combined
+            
+        except Exception as e:
+            logger.error(f"Error combining recommendations: {e}")
+            return ai_recommendations  # Return AI recommendations as fallback
+    
+    def _convert_recommendation_request_to_profile(
+        self, 
+        request: ContentRecommendationRequest
+    ) -> Optional['UserProfile']:
+        """Convert ContentRecommendationRequest to UserProfile format."""
+        try:
+            from ..models.ai_models import UserProfile
+            
+            return UserProfile(
+                user_id=request.user_id,
+                education_level=request.education_level,
+                subjects=[request.current_topic],
+                skill_levels={request.current_topic: request.skill_level},
+                learning_preferences={
+                    "learning_context": request.learning_context,
+                    "preferred_formats": [fmt.value for fmt in request.preferred_formats],
+                    "max_duration": request.max_duration
+                },
+                goals=[f"learn {request.current_topic}"],
+                interaction_history=[]  # Empty for new users
+            )
+            
+        except Exception as e:
+            logger.error(f"Error converting request to profile: {e}")
+            return None
     
     async def create_embeddings(
         self, 
