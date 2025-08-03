@@ -4,10 +4,12 @@ FastAPI-based AI service for the LusiLearn platform, providing AI-powered learni
 
 ## Features
 
+- **Multi-AI Provider Support**: Switch between OpenAI GPT and Google Gemini
 - **OpenAI Integration**: GPT-powered learning path generation and content recommendations
+- **Gemini Integration**: Google's Gemini AI for diverse AI responses and fallback
 - **Vector Database**: Pinecone integration for content similarity and embeddings
 - **Health Monitoring**: Comprehensive health checks and service monitoring
-- **Error Handling**: Robust error handling with fallback mechanisms
+- **Error Handling**: Robust error handling with automatic fallback between providers
 - **Rate Limiting**: Built-in rate limiting for API protection
 
 ## Architecture
@@ -40,19 +42,29 @@ src/
 
 - Python 3.11+
 - Redis (for caching)
-- OpenAI API key
-- Pinecone API key and environment
+- OpenAI API key (optional)
+- Google Gemini API key (optional)
+- Pinecone API key and environment (optional)
 
 ### Environment Variables
 
 Configure the following environment variables in your `.env` file:
 
 ```env
+# AI Provider Configuration
+AI_PROVIDER=openai  # or 'gemini'
+
 # OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_MODEL=gpt-3.5-turbo
 OPENAI_MAX_TOKENS=2048
 OPENAI_TEMPERATURE=0.7
+
+# Gemini Configuration
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-pro
+GEMINI_MAX_TOKENS=2048
+GEMINI_TEMPERATURE=0.7
 
 # Vector Database (Pinecone)
 VECTOR_DB_API_KEY=your-pinecone-api-key
@@ -100,10 +112,16 @@ docker run -p 8001:8001 --env-file .env lusilearn-ai:prod
 
 ### Learning Paths
 - `POST /api/v1/learning-paths/` - Generate personalized learning path
+- `POST /api/v1/learning-paths/provider/{provider}` - Generate with specific AI provider
+- `POST /api/v1/learning-paths/compare` - Compare responses from both providers
 
 ### Content Recommendations
 - `POST /api/v1/recommendations/` - Get content recommendations
 - `POST /api/v1/recommendations/embeddings` - Create text embeddings
+- `GET /api/v1/recommendations/provider` - Get current AI provider
+- `POST /api/v1/recommendations/provider/{provider}` - Switch AI provider (openai/gemini)
+- `GET /api/v1/recommendations/provider/status` - Get detailed status of all providers
+- `POST /api/v1/recommendations/compare` - Compare recommendations from both providers
 
 ### Peer Matching
 - `POST /api/v1/peer-matching/` - Find peer matches (placeholder)

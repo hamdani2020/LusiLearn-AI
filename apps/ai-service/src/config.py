@@ -22,13 +22,24 @@ class Settings(BaseSettings):
         description="Allowed CORS origins"
     )
     
+    # AI Provider Configuration
+    AI_PROVIDER: str = Field(default="openai", description="AI provider: 'openai' or 'gemini'")
+    
     # OpenAI Configuration
-    OPENAI_API_KEY: str = Field(..., description="OpenAI API key")
+    OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
     OPENAI_MODEL: str = Field(default="gpt-3.5-turbo", description="Default OpenAI model")
     OPENAI_MAX_TOKENS: int = Field(default=1000, description="Max tokens per request")
     OPENAI_TEMPERATURE: float = Field(default=0.7, description="OpenAI temperature")
     OPENAI_TIMEOUT: int = Field(default=30, description="OpenAI request timeout in seconds")
     OPENAI_MAX_RETRIES: int = Field(default=3, description="Max retry attempts for OpenAI")
+    
+    # Gemini Configuration
+    GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key")
+    GEMINI_MODEL: str = Field(default="gemini-pro", description="Default Gemini model")
+    GEMINI_MAX_TOKENS: int = Field(default=1000, description="Max tokens per request")
+    GEMINI_TEMPERATURE: float = Field(default=0.7, description="Gemini temperature")
+    GEMINI_TIMEOUT: int = Field(default=30, description="Gemini request timeout in seconds")
+    GEMINI_MAX_RETRIES: int = Field(default=3, description="Max retry attempts for Gemini")
     
     # Pinecone Configuration
     PINECONE_API_KEY: str = Field(default="", description="Pinecone API key", alias="VECTOR_DB_API_KEY")

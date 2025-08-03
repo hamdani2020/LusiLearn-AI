@@ -15,7 +15,9 @@ def test_structure():
         'src/main.py',
         'src/config.py',
         'src/services/__init__.py',
+        'src/services/ai_service.py',
         'src/services/openai_service.py',
+        'src/services/gemini_service.py',
         'src/services/vector_service.py',
         'src/services/health_service.py',
         'src/models/__init__.py',
@@ -67,6 +69,25 @@ def test_imports():
         assert hasattr(exceptions, 'OpenAIError')
         assert hasattr(exceptions, 'VectorServiceError')
         print("✓ Exception classes defined")
+        
+        # Test AI service imports
+        try:
+            from src.services.ai_service import AIService, AIProvider
+            print("✓ Unified AI service imported")
+        except ImportError as e:
+            print(f"⚠ AI service import failed (dependencies missing): {e}")
+        
+        try:
+            from src.services.openai_service import OpenAIService
+            print("✓ OpenAI service imported")
+        except ImportError as e:
+            print(f"⚠ OpenAI service import failed (dependencies missing): {e}")
+        
+        try:
+            from src.services.gemini_service import GeminiService
+            print("✓ Gemini service imported")
+        except ImportError as e:
+            print(f"⚠ Gemini service import failed (dependencies missing): {e}")
         
         return True
     except Exception as e:

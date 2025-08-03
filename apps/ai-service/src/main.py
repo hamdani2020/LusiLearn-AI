@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import settings
-from .services.openai_service import OpenAIService
+from .services.ai_service import AIService
 from .services.vector_service import VectorService
 from .services.health_service import HealthService
 from .routes import health, recommendations, learning_paths, peer_matching
@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global service instances
-openai_service = None
+ai_service = None
 vector_service = None
 health_service = None
 
@@ -31,18 +31,18 @@ health_service = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
-    global openai_service, vector_service, health_service
+    global ai_service, vector_service, health_service
     
     logger.info("Starting AI service...")
     
     try:
         # Initialize services
-        openai_service = OpenAIService()
+        ai_service = AIService()
         vector_service = VectorService()
         health_service = HealthService()
         
         # Initialize connections
-        await openai_service.initialize()
+        await ai_service.initialize()
         await vector_service.initialize()
         await health_service.initialize()
         
@@ -56,6 +56,8 @@ async def lifespan(app: FastAPI):
     finally:
         # Cleanup
         logger.info("Shutting down AI service...")
+        if ai_service:
+            await ai_service.close()
         if vector_service:
             await vector_service.close()
         if health_service:
