@@ -14,6 +14,7 @@ from ..models.ai_models import (
 from ..utils.exceptions import AIServiceError, ConfigurationError
 from .openai_service import OpenAIService
 from .gemini_service import GeminiService
+from .learning_path_service import LearningPathAlgorithm
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class AIService:
     def __init__(self):
         self.openai_service = OpenAIService()
         self.gemini_service = GeminiService()
+        self.learning_path_algorithm = LearningPathAlgorithm()
         self.current_provider = AIProvider(settings.AI_PROVIDER.lower())
         
     async def initialize(self):
@@ -67,7 +69,144 @@ class AIService:
         request: LearningPathRequest,
         provider: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Generate personalized learning path using specified or current provider."""
+        """Generate personalized learning path using AI providers with algorithmic enhancement."""
+        try:
+            # First, try to get AI-enhanced path from providers
+            ai_result = await self._get_ai_enhanced_path(request, provider)
+            
+            # If AI providers are available, enhance with algorithms
+            if ai_result and not ai_result.get("fallback_used"):
+                logger.info("Enhancing AI-generated path with algorithms")
+                return await self._enhance_path_with_algorithms(ai_result, request)
+            
+            # If AI providers failed, use pure algorithmic approach
+            logger.info("Using algorithmic learning path generation")
+            return await self.generate_algorithmic_learning_path(request)
+            
+        except Exception as e:
+            logger.error(f"Error in learning path generation: {e}")
+            
+            # Final fallback to algorithmic approach
+            if settings.ENABLE_FALLBACKS:
+                logger.info("Using fallback algorithmic path generation")
+                return await self.generate_algorithmic_learning_path(request)
+            
+            raise AIServiceError(f"Failed to generate learning path: {e}")
+    
+    async def generate_algorithmic_learning_path(
+        self, 
+        request: LearningPathRequest
+    ) -> Dict[str, Any]:
+        """Generate learning path using pure algorithmic approach."""
+        try:
+            # Convert request to user profile format
+            user_profile = self._convert_request_to_profile(request)
+            
+            # Generate path using algorithms
+            result = self.learning_path_algorithm.generate_personalized_path(
+                user_profile=user_profile,
+                subject=request.subject,
+                learning_goals=request.learning_goals,
+                time_commitment=request.time_commitment
+            )
+            
+            # Add request metadata
+            result.update({
+                "ai_provider": "algorithmic",
+                "generation_method": "pure_algorithm",
+                "request_metadata": {
+                    "education_level": request.education_level,
+                    "learning_style": request.learning_style,
+                    "current_level": request.current_level
+                }
+            })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in algorithmic path generation: {e}")
+            
+            # Ultimate fallback
+            return self.learning_path_algorithm.create_fallback_path(
+                education_level=request.education_level,
+                subject=request.subject,
+                learning_goals=request.learning_goals,
+                time_commitment=request.time_commitment
+            )
+    
+    async def adapt_learning_path(
+        self,
+        current_path: Dict[str, Any],
+        performance_data: Dict[str, Any],
+        user_profile: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Adapt learning path based on user performance."""
+        try:
+            logger.info(f"Adapting learning path for user {user_profile.get('user_id')}")
+            
+            # Convert user profile to expected format
+            profile_obj = self._convert_dict_to_profile(user_profile)
+            
+            # Use algorithm to adapt the path
+            adapted_path = self.learning_path_algorithm.adapt_path_based_on_performance(
+                current_path=current_path,
+                performance_data=performance_data,
+                user_profile=profile_obj
+            )
+            
+            return adapted_path
+            
+        except Exception as e:
+            logger.error(f"Error adapting learning path: {e}")
+            raise AIServiceError(f"Failed to adapt learning path: {e}")
+    
+    async def sequence_learning_objectives(
+        self,
+        objectives: List[Dict[str, Any]],
+        user_completed: List[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Sequence learning objectives based on prerequisites."""
+        try:
+            return self.learning_path_algorithm.sequence_with_prerequisites(
+                objectives=objectives,
+                user_completed=user_completed or []
+            )
+            
+        except Exception as e:
+            logger.error(f"Error sequencing objectives: {e}")
+            return objectives  # Return original order as fallback
+    
+    async def create_fallback_learning_path(
+        self,
+        education_level: str,
+        subject: str,
+        learning_goals: List[str] = None,
+        time_commitment: int = 10
+    ) -> Dict[str, Any]:
+        """Create fallback learning path when all AI services are unavailable."""
+        try:
+            from ..models.ai_models import EducationLevel
+            
+            # Convert string to enum
+            level_enum = EducationLevel(education_level.lower())
+            
+            return self.learning_path_algorithm.create_fallback_path(
+                education_level=level_enum,
+                subject=subject,
+                learning_goals=learning_goals or [],
+                time_commitment=time_commitment
+            )
+            
+        except Exception as e:
+            logger.error(f"Error creating fallback path: {e}")
+            raise AIServiceError(f"Failed to create fallback path: {e}")
+    
+    async def _get_ai_enhanced_path(
+        self, 
+        request: LearningPathRequest, 
+        provider: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Get AI-enhanced path from providers."""
         try:
             # Use specified provider or current default
             active_provider = AIProvider(provider.lower()) if provider else self.current_provider
@@ -84,7 +223,7 @@ class AIService:
             return result
             
         except Exception as e:
-            logger.error(f"Error generating learning path with {active_provider}: {e}")
+            logger.warning(f"AI provider {active_provider} failed: {e}")
             
             # Try fallback to other provider if current one fails
             if settings.ENABLE_FALLBACKS:
@@ -102,9 +241,115 @@ class AIService:
                     return result
                     
                 except Exception as fallback_error:
-                    logger.error(f"Fallback provider also failed: {fallback_error}")
+                    logger.warning(f"Fallback provider also failed: {fallback_error}")
             
-            raise AIServiceError(f"Failed to generate learning path: {e}")
+            return None
+    
+    async def _enhance_path_with_algorithms(
+        self, 
+        ai_result: Dict[str, Any], 
+        request: LearningPathRequest
+    ) -> Dict[str, Any]:
+        """Enhance AI-generated path with algorithmic improvements."""
+        try:
+            # Extract objectives from AI result
+            ai_objectives = ai_result.get("objectives", [])
+            
+            # Convert AI objectives to standard format if needed
+            standardized_objectives = self._standardize_objectives(ai_objectives)
+            
+            # Apply algorithmic sequencing
+            sequenced_objectives = await self.sequence_learning_objectives(standardized_objectives)
+            
+            # Enhance with algorithmic insights
+            user_profile = self._convert_request_to_profile(request)
+            
+            # Create enhanced result
+            enhanced_result = ai_result.copy()
+            enhanced_result.update({
+                "objectives": sequenced_objectives,
+                "enhancement_applied": True,
+                "enhancement_methods": ["prerequisite_sequencing", "algorithmic_optimization"],
+                "original_ai_objectives_count": len(ai_objectives),
+                "enhanced_objectives_count": len(sequenced_objectives)
+            })
+            
+            return enhanced_result
+            
+        except Exception as e:
+            logger.warning(f"Error enhancing AI path with algorithms: {e}")
+            return ai_result  # Return original AI result as fallback
+    
+    def _convert_request_to_profile(self, request: LearningPathRequest) -> 'UserProfile':
+        """Convert LearningPathRequest to UserProfile format."""
+        from ..models.ai_models import UserProfile
+        
+        return UserProfile(
+            user_id=request.user_id,
+            education_level=request.education_level,
+            subjects=[request.subject],
+            skill_levels={request.subject: request.current_level},
+            learning_preferences={
+                "learning_style": request.learning_style,
+                "time_commitment": request.time_commitment,
+                "preferred_formats": ["video", "interactive", "article"]  # Default formats
+            },
+            goals=request.learning_goals,
+            interaction_history=[]  # Empty for new users
+        )
+    
+    def _convert_dict_to_profile(self, user_dict: Dict[str, Any]) -> 'UserProfile':
+        """Convert dictionary to UserProfile format."""
+        from ..models.ai_models import UserProfile, EducationLevel, DifficultyLevel
+        
+        return UserProfile(
+            user_id=user_dict.get("user_id", ""),
+            education_level=EducationLevel(user_dict.get("education_level", "k12")),
+            subjects=user_dict.get("subjects", []),
+            skill_levels=user_dict.get("skill_levels", {}),
+            learning_preferences=user_dict.get("learning_preferences", {}),
+            goals=user_dict.get("goals", []),
+            interaction_history=user_dict.get("interaction_history", [])
+        )
+    
+    def _standardize_objectives(self, objectives: List[Any]) -> List[Dict[str, Any]]:
+        """Standardize objectives from different AI providers."""
+        standardized = []
+        
+        for i, obj in enumerate(objectives):
+            if isinstance(obj, dict):
+                standardized_obj = obj.copy()
+            elif isinstance(obj, str):
+                # Convert string objectives to dict format
+                standardized_obj = {
+                    "id": f"obj_{i+1}",
+                    "title": obj,
+                    "description": f"Learn and understand {obj}",
+                    "difficulty": "beginner",
+                    "estimated_hours": 2,
+                    "skills_gained": [obj.lower().replace(" ", "_")]
+                }
+            else:
+                # Handle other formats
+                standardized_obj = {
+                    "id": f"obj_{i+1}",
+                    "title": str(obj),
+                    "description": f"Learning objective {i+1}",
+                    "difficulty": "beginner",
+                    "estimated_hours": 2
+                }
+            
+            # Ensure required fields exist
+            if "id" not in standardized_obj:
+                standardized_obj["id"] = f"obj_{i+1}"
+            if "title" not in standardized_obj:
+                standardized_obj["title"] = f"Learning Objective {i+1}"
+            if "difficulty" not in standardized_obj:
+                standardized_obj["difficulty"] = "beginner"
+            
+            standardized.append(standardized_obj)
+        
+        return standardized
     
     async def get_content_recommendations(
         self, 
