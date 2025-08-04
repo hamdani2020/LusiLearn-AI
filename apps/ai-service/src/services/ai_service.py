@@ -16,6 +16,7 @@ from .openai_service import OpenAIService
 from .gemini_service import GeminiService
 from .learning_path_service import LearningPathAlgorithm
 from .content_recommendation_service import ContentRecommendationEngine, RecommendationStrategy
+from .peer_matching_service import PeerMatchingEngine, MatchingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class AIService:
         self.gemini_service = GeminiService()
         self.learning_path_algorithm = LearningPathAlgorithm()
         self.content_recommendation_engine = ContentRecommendationEngine()
+        self.peer_matching_engine = PeerMatchingEngine()
         self.current_provider = AIProvider(settings.AI_PROVIDER.lower())
         
     async def initialize(self):
@@ -45,6 +47,9 @@ class AIService:
             
             # Initialize content recommendation engine
             await self.content_recommendation_engine.initialize()
+            
+            # Initialize peer matching engine
+            await self.peer_matching_engine.initialize()
             
             logger.info(f"AI service initialized with provider: {self.current_provider}")
             
@@ -734,4 +739,71 @@ class AIService:
                 "gemini_success": "error" not in results["responses"]["gemini"]
             }
         
-        return results
+        return results  
+  
+    # Peer Matching Methods
+    async def find_peer_matches(
+        self,
+        request: 'PeerMatchingRequest',
+        strategy: Optional[str] = None,
+        max_matches: int = 10
+    ) -> List['PeerMatch']:
+        """Find peer matches using the peer matching engine."""
+        try:
+            from ..models.ai_models import PeerMatchingRequest
+            
+            # Determine strategy
+            matching_strategy = MatchingStrategy.COMPREHENSIVE
+            if strategy:
+                try:
+                    matching_strategy = MatchingStrategy(strategy.lower())
+                except ValueError:
+                    logger.warning(f"Invalid matching strategy {strategy}, using comprehensive")
+            
+            # Get matches from the engine
+            matches = await self.peer_matching_engine.find_peer_matches(
+                request=request,
+                strategy=matching_strategy,
+                max_matches=max_matches
+            )
+            
+            return matches
+            
+        except Exception as e:
+            logger.error(f"Error finding peer matches: {e}")
+            return []
+    
+    async def update_peer_match_feedback(
+        self,
+        user_id: str,
+        peer_id: str,
+        feedback_score: float,
+        feedback_type: str
+    ):
+        """Update peer match feedback for improving future recommendations."""
+        try:
+            await self.peer_matching_engine.update_match_feedback(
+                user_id=user_id,
+                peer_id=peer_id,
+                feedback_score=feedback_score,
+                feedback_type=feedback_type
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating peer match feedback: {e}")
+    
+    async def get_peer_matching_analytics(
+        self,
+        user_id: str,
+        time_period: int = 30
+    ) -> Dict[str, Any]:
+        """Get analytics about peer matching for a user."""
+        try:
+            return await self.peer_matching_engine.get_matching_analytics(
+                user_id=user_id,
+                time_period=time_period
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting peer matching analytics: {e}")
+            return {}

@@ -93,7 +93,7 @@
     - Implement recommendation ranking and filtering
     - _Requirements: 3.1, 3.3, 3.5, 3.6, 6.1, 6.2_
 
-  - [ ] 5.4 Create peer matching intelligence
+  - [x] 5.4 Create peer matching intelligence
     - Implement skill complementarity analysis for peer matching
     - Create learning goal alignment algorithms
     - Add communication style and time zone compatibility matching
@@ -101,7 +101,7 @@
     - _Requirements: 4.1, 4.2, 4.3, 4.5, 8.5_
 
 - [ ] 6. Build Learning Path Service
-  - [ ] 6.1 Implement learning path management
+  - [x] 6.1 Implement learning path management
     - Create learning path generation API endpoints
     - Implement path storage and retrieval with database operations
     - Add learning path update and modification functionality
