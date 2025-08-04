@@ -8,6 +8,7 @@ import { db } from './database/connection';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
 import { assessmentRouter } from './routes/assessment';
+import { learningPathRouter, initializeLearningPathRoutes } from './routes/learning-path';
 import { errorHandler } from './middleware/error-handler';
 
 const app = express();
@@ -58,10 +59,14 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Initialize learning path routes with database pool
+initializeLearningPathRoutes(db.getPool());
+
 // API routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/assessments', assessmentRouter);
+app.use('/api/v1/learning-paths', learningPathRouter);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

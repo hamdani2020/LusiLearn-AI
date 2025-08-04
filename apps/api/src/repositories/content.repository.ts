@@ -345,7 +345,7 @@ export class ContentRepository {
     try {
       const query = 'UPDATE content_items SET is_active = false, updated_at = NOW() WHERE id = $1';
       const result = await client.query(query, [id]);
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       logger.error('Error deactivating content item:', error);
       throw error;
