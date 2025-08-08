@@ -102,6 +102,116 @@ export interface LearningInsights {
   suggestedDifficulty: DifficultyLevel;
 }
 
+// Progress Tracking Types
+export interface ProgressUpdate {
+  sessionId: string;
+  userId: string;
+  pathId: string;
+  timestamp: Date;
+  progressData: {
+    objectivesCompleted: string[];
+    milestonesReached: string[];
+    skillsImproved: string[];
+    timeSpent: number;
+    comprehensionScore: number;
+    engagementLevel: number;
+  };
+}
+
+export interface Achievement {
+  id: string;
+  type: 'milestone' | 'streak' | 'skill_mastery' | 'collaboration' | 'consistency';
+  title: string;
+  description: string;
+  iconUrl?: string;
+  criteria: Record<string, any>;
+  earnedAt: Date;
+  points: number;
+}
+
+export interface LearningStreak {
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate: Date;
+  streakType: 'daily' | 'weekly' | 'monthly';
+}
+
+export interface SkillProgress {
+  skillId: string;
+  skillName: string;
+  currentLevel: number; // 0-100
+  previousLevel: number;
+  improvementRate: number; // percentage change
+  lastAssessed: Date;
+  masteryThreshold: number;
+  isMastered: boolean;
+}
+
+export interface LearningAnalytics {
+  userId: string;
+  timeframe: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  metrics: {
+    totalTimeSpent: number; // in minutes
+    sessionsCompleted: number;
+    averageSessionDuration: number;
+    comprehensionTrend: number[]; // array of scores over time
+    engagementTrend: number[]; // array of engagement scores
+    objectivesCompleted: number;
+    milestonesReached: number;
+    skillsImproved: number;
+    achievementsEarned: number;
+    collaborationHours: number;
+    consistencyScore: number; // 0-100
+  };
+  insights: {
+    strongestSubjects: string[];
+    improvementAreas: string[];
+    optimalLearningTimes: string[];
+    recommendedSessionDuration: number;
+    learningVelocity: number; // objectives per week
+    retentionRate: number; // percentage
+  };
+  predictions: {
+    nextMilestoneETA: Date;
+    goalCompletionProbability: number;
+    suggestedFocusAreas: string[];
+    riskFactors: string[];
+  };
+}
+
+export interface ProgressVisualizationData {
+  userId: string;
+  pathId: string;
+  overallProgress: {
+    percentage: number;
+    completedObjectives: number;
+    totalObjectives: number;
+    estimatedCompletion: Date;
+  };
+  milestoneProgress: {
+    milestoneId: string;
+    title: string;
+    progress: number; // 0-100
+    isCompleted: boolean;
+    completedAt?: Date;
+    objectives: {
+      id: string;
+      title: string;
+      isCompleted: boolean;
+      completedAt?: Date;
+    }[];
+  }[];
+  skillProgression: SkillProgress[];
+  timeSeriesData: {
+    date: string;
+    comprehensionScore: number;
+    timeSpent: number;
+    engagementLevel: number;
+  }[];
+  achievements: Achievement[];
+  streaks: LearningStreak[];
+}
+
 // Validation schemas
 export const LearningObjectiveSchema = z.object({
   id: IdSchema,
@@ -152,7 +262,7 @@ export const LearningPathSchema = z.object({
 
 export const UserInteractionSchema = z.object({
   type: z.enum(['click', 'scroll', 'pause', 'replay', 'skip']),
-  timestamp: z.date(),
+  timestamp: z.string().datetime().transform((str) => new Date(str)),
   duration: z.number().optional(),
   metadata: z.record(z.any()).optional()
 });
@@ -183,8 +293,8 @@ export const LearningSessionSchema = z.object({
   assessmentResults: z.array(AssessmentResultSchema),
   comprehensionScore: z.number().min(0).max(100),
   engagementMetrics: EngagementMetricsSchema,
-  createdAt: z.date(),
-  updatedAt: z.date()
+  createdAt: z.string().datetime().transform((str) => new Date(str)),
+  updatedAt: z.string().datetime().transform((str) => new Date(str))
 });
 
 export const LearningGoalSchema = z.object({
@@ -196,4 +306,81 @@ export const LearningGoalSchema = z.object({
 export const CreateLearningPathSchema = z.object({
   subject: z.string(),
   goals: z.array(LearningGoalSchema)
+});
+
+// Progress Tracking Validation Schemas
+export const ProgressUpdateSchema = z.object({
+  sessionId: IdSchema,
+  userId: IdSchema,
+  pathId: IdSchema,
+  timestamp: z.date(),
+  progressData: z.object({
+    objectivesCompleted: z.array(z.string()),
+    milestonesReached: z.array(z.string()),
+    skillsImproved: z.array(z.string()),
+    timeSpent: z.number().min(0),
+    comprehensionScore: z.number().min(0).max(100),
+    engagementLevel: z.number().min(0).max(100)
+  })
+});
+
+export const AchievementSchema = z.object({
+  id: IdSchema,
+  type: z.enum(['milestone', 'streak', 'skill_mastery', 'collaboration', 'consistency']),
+  title: z.string(),
+  description: z.string(),
+  iconUrl: z.string().optional(),
+  criteria: z.record(z.any()),
+  earnedAt: z.date(),
+  points: z.number().min(0)
+});
+
+export const LearningStreakSchema = z.object({
+  currentStreak: z.number().min(0),
+  longestStreak: z.number().min(0),
+  lastActivityDate: z.date(),
+  streakType: z.enum(['daily', 'weekly', 'monthly'])
+});
+
+export const SkillProgressSchema = z.object({
+  skillId: z.string(),
+  skillName: z.string(),
+  currentLevel: z.number().min(0).max(100),
+  previousLevel: z.number().min(0).max(100),
+  improvementRate: z.number(),
+  lastAssessed: z.date(),
+  masteryThreshold: z.number().min(0).max(100),
+  isMastered: z.boolean()
+});
+
+export const LearningAnalyticsSchema = z.object({
+  userId: IdSchema,
+  timeframe: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  metrics: z.object({
+    totalTimeSpent: z.number().min(0),
+    sessionsCompleted: z.number().min(0),
+    averageSessionDuration: z.number().min(0),
+    comprehensionTrend: z.array(z.number()),
+    engagementTrend: z.array(z.number()),
+    objectivesCompleted: z.number().min(0),
+    milestonesReached: z.number().min(0),
+    skillsImproved: z.number().min(0),
+    achievementsEarned: z.number().min(0),
+    collaborationHours: z.number().min(0),
+    consistencyScore: z.number().min(0).max(100)
+  }),
+  insights: z.object({
+    strongestSubjects: z.array(z.string()),
+    improvementAreas: z.array(z.string()),
+    optimalLearningTimes: z.array(z.string()),
+    recommendedSessionDuration: z.number().min(0),
+    learningVelocity: z.number().min(0),
+    retentionRate: z.number().min(0).max(100)
+  }),
+  predictions: z.object({
+    nextMilestoneETA: z.date(),
+    goalCompletionProbability: z.number().min(0).max(100),
+    suggestedFocusAreas: z.array(z.string()),
+    riskFactors: z.array(z.string())
+  })
 });
