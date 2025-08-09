@@ -46,7 +46,7 @@ export class CollaborationService {
   constructor(
     private db: Pool,
     private aiServiceUrl: string = process.env.AI_SERVICE_URL || 'http://ai-service:8001'
-  ) {}
+  ) { }
 
   /**
    * Find peer matches using AI service recommendations
@@ -246,8 +246,8 @@ export class CollaborationService {
    * Create and track group activity
    */
   async createGroupActivity(
-    groupId: string, 
-    creatorId: string, 
+    groupId: string,
+    creatorId: string,
     activityData: {
       type: CollaborationActivityType;
       title: string;
@@ -521,9 +521,9 @@ export class CollaborationService {
       }
 
       const style = result.rows[0].communication_style;
-      return style === 'formal' ? ['email', 'video_call'] : 
-             style === 'casual' ? ['chat', 'voice_call'] : 
-             ['chat', 'video_call', 'email'];
+      return style === 'formal' ? ['email', 'video_call'] :
+        style === 'casual' ? ['chat', 'voice_call'] :
+          ['chat', 'video_call', 'email'];
 
     } catch (error) {
       logger.error('Error getting user communication preferences:', error);
@@ -535,8 +535,8 @@ export class CollaborationService {
     // Convert array of skill levels to object format expected by AI service
     const skillMap: Record<string, string> = {};
     skillLevels.forEach((skill, index) => {
-      const level = index % 3 === 0 ? 'beginner' : 
-                   index % 3 === 1 ? 'intermediate' : 'advanced';
+      const level = index % 3 === 0 ? 'beginner' :
+        index % 3 === 1 ? 'intermediate' : 'advanced';
       skillMap[skill] = level;
     });
     return skillMap;
@@ -544,7 +544,7 @@ export class CollaborationService {
 
   private async callAIServiceForMatching(request: AIServicePeerMatchRequest): Promise<AIServicePeerMatch[]> {
     try {
-      const response = await fetch(`${this.aiServiceUrl}/api/v1/peer-matching/find-matches`, {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/peer-matching/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
