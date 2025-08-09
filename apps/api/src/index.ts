@@ -11,6 +11,7 @@ import { assessmentRouter } from './routes/assessment';
 import { learningPathRouter, initializeLearningPathRoutes } from './routes/learning-path';
 import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
+import { createCollaborationRoutes } from './routes';
 import { errorHandler } from './middleware/error-handler';
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/v1/assessments', assessmentRouter);
 app.use('/api/v1/learning-paths', learningPathRouter);
 app.use('/api/v1/progress', createProgressRoutes(db.getPool()));
 app.use('/api/v1/adaptive-difficulty', createAdaptiveDifficultyRoutes(db.getPool()));
+app.use('/api/v1/collaboration', createCollaborationRoutes(db.getPool()));
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
