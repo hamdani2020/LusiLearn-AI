@@ -102,6 +102,36 @@ export interface LearningInsights {
   suggestedDifficulty: DifficultyLevel;
 }
 
+// Adaptive Difficulty Types
+export interface DifficultyAdjustmentResult {
+  newDifficulty: DifficultyLevel;
+  reason: string;
+  confidence: number; // 0-100
+  recommendedActions: string[];
+}
+
+export interface ContentSequenceResult {
+  nextObjectives: LearningObjective[];
+  prerequisitesMet: boolean;
+  blockedObjectives: string[];
+  recommendedReview: string[];
+}
+
+export interface CompetencyTestResult {
+  passed: boolean;
+  score: number;
+  skillsAssessed: string[];
+  weakAreas: string[];
+  readyForAdvancement: boolean;
+}
+
+export interface OptimalChallengeAnalysis {
+  currentChallengeLevel: number; // 0-100
+  isOptimal: boolean; // true if between 70-85%
+  adjustment: 'increase' | 'decrease' | 'maintain';
+  targetComprehension: number;
+}
+
 // Progress Tracking Types
 export interface ProgressUpdate {
   sessionId: string;
@@ -383,4 +413,34 @@ export const LearningAnalyticsSchema = z.object({
     suggestedFocusAreas: z.array(z.string()),
     riskFactors: z.array(z.string())
   })
+});
+
+// Adaptive Difficulty Validation Schemas
+export const DifficultyAdjustmentResultSchema = z.object({
+  newDifficulty: z.nativeEnum(DifficultyLevel),
+  reason: z.string(),
+  confidence: z.number().min(0).max(100),
+  recommendedActions: z.array(z.string())
+});
+
+export const ContentSequenceResultSchema = z.object({
+  nextObjectives: z.array(LearningObjectiveSchema),
+  prerequisitesMet: z.boolean(),
+  blockedObjectives: z.array(z.string()),
+  recommendedReview: z.array(z.string())
+});
+
+export const CompetencyTestResultSchema = z.object({
+  passed: z.boolean(),
+  score: z.number().min(0).max(100),
+  skillsAssessed: z.array(z.string()),
+  weakAreas: z.array(z.string()),
+  readyForAdvancement: z.boolean()
+});
+
+export const OptimalChallengeAnalysisSchema = z.object({
+  currentChallengeLevel: z.number().min(0).max(100),
+  isOptimal: z.boolean(),
+  adjustment: z.enum(['increase', 'decrease', 'maintain']),
+  targetComprehension: z.number().min(0).max(100)
 });
