@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -11,9 +12,14 @@ import { assessmentRouter } from './routes/assessment';
 import { learningPathRouter, initializeLearningPathRoutes } from './routes/learning-path';
 import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
+import { createCollaborationRoutes } from './routes';
+import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { errorHandler } from './middleware/error-handler';
+import { WebSocketService } from './services/websocket.service';
+import { CollaborationService } from './services/collaboration.service';
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
@@ -61,6 +67,10 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Initialize services
+const collaborationService = new CollaborationService(db.getPool());
+const webSocketService = new WebSocketService(httpServer, db.getPool(), collaborationService);
+
 // Initialize learning path routes with database pool
 initializeLearningPathRoutes(db.getPool());
 
@@ -71,6 +81,21 @@ app.use('/api/v1/assessments', assessmentRouter);
 app.use('/api/v1/learning-paths', learningPathRouter);
 app.use('/api/v1/progress', createProgressRoutes(db.getPool()));
 app.use('/api/v1/adaptive-difficulty', createAdaptiveDifficultyRoutes(db.getPool()));
+app.use('/api/v1/collaboration', createCollaborationRoutes(db.getPool()));
+app.use('/api/v1/safety', createSafetyModerationRoutes(db.getPool()));
+
+// WebSocket status endpoint
+app.get('/api/v1/collaboration/active-sessions', (req, res) => {
+  const activeSessions = webSocketService.getActiveCollaborations();
+  res.json({
+    success: true,
+    data: {
+      sessions: activeSessions,
+      totalSessions: activeSessions.length,
+      totalParticipants: activeSessions.reduce((sum, session) => sum + session.participantCount, 0)
+    }
+  });
+});
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
@@ -83,9 +108,10 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+// Start server with HTTP and WebSocket support
+httpServer.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT} with WebSocket support`);
+  logger.info(`WebSocket endpoint: ws://localhost:${PORT}`);
 });
 
 // Graceful shutdown
