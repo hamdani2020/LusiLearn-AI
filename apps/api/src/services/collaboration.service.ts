@@ -65,7 +65,7 @@ export class CollaborationService {
       const aiRequest: AIServicePeerMatchRequest = {
         user_id: userId,
         subjects: criteria.subjects,
-        skill_levels: this.convertSkillLevels(criteria.skillLevels),
+        skill_levels: this.convertSkillLevels(criteria.subjects, criteria.skillLevels),
         learning_goals: criteria.learningGoals,
         availability: await this.getUserAvailability(userId),
         communication_preferences: await this.getUserCommunicationPreferences(userId),
@@ -78,19 +78,28 @@ export class CollaborationService {
 
       // Convert AI matches to our format and store in database
       const peerMatches: PeerMatch[] = [];
+      logger.info(`Converting ${aiMatches.length} AI matches to PeerMatch format`);
+      
       for (const aiMatch of aiMatches) {
-        const peerMatch: PeerMatch = {
-          userId: aiMatch.user_id,
-          compatibilityScore: aiMatch.compatibility_score,
-          sharedInterests: aiMatch.shared_subjects,
-          complementarySkills: Object.keys(aiMatch.complementary_skills),
-          matchReason: aiMatch.match_reasons.join('; '),
-          estimatedCollaborationSuccess: Math.min(aiMatch.compatibility_score * 1.2, 100)
-        };
+        try {
+          const peerMatch: PeerMatch = {
+            userId: aiMatch.user_id,
+            compatibilityScore: aiMatch.compatibility_score,
+            sharedInterests: aiMatch.shared_subjects || [],
+            complementarySkills: Object.keys(aiMatch.complementary_skills || {}),
+            matchReason: (aiMatch.match_reasons || []).join('; '),
+            estimatedCollaborationSuccess: Math.min(aiMatch.compatibility_score * 1.2, 100)
+          };
 
-        // Store match in database
-        await this.storePeerMatch(userId, peerMatch);
-        peerMatches.push(peerMatch);
+          // Store match in database
+          await this.storePeerMatch(userId, peerMatch);
+          peerMatches.push(peerMatch);
+          
+          logger.info(`Converted match: ${peerMatch.userId} with score ${peerMatch.compatibilityScore}`);
+        } catch (error) {
+          logger.error(`Error converting AI match:`, error);
+          logger.error(`AI match data:`, JSON.stringify(aiMatch, null, 2));
+        }
       }
 
       logger.info(`Found ${peerMatches.length} peer matches for user ${userId}`);
@@ -531,19 +540,22 @@ export class CollaborationService {
     }
   }
 
-  private convertSkillLevels(skillLevels: string[]): Record<string, string> {
-    // Convert array of skill levels to object format expected by AI service
+  private convertSkillLevels(subjects: string[], skillLevels: string[]): Record<string, string> {
+    // Map subjects to their corresponding skill levels for AI service
     const skillMap: Record<string, string> = {};
-    skillLevels.forEach((skill, index) => {
-      const level = index % 3 === 0 ? 'beginner' :
-        index % 3 === 1 ? 'intermediate' : 'advanced';
-      skillMap[skill] = level;
+    subjects.forEach((subject, index) => {
+      // Use the skill level at the same index, or default to 'beginner' if not enough skill levels provided
+      const level = skillLevels[index] || 'beginner';
+      skillMap[subject] = level;
     });
     return skillMap;
   }
 
   private async callAIServiceForMatching(request: AIServicePeerMatchRequest): Promise<AIServicePeerMatch[]> {
     try {
+      logger.info(`Calling AI service for peer matching at ${this.aiServiceUrl}/api/v1/peer-matching/`);
+      logger.info(`Request data: ${JSON.stringify(request, null, 2)}`);
+
       const response = await fetch(`${this.aiServiceUrl}/api/v1/peer-matching/`, {
         method: 'POST',
         headers: {
@@ -552,15 +564,31 @@ export class CollaborationService {
         body: JSON.stringify(request)
       });
 
+      logger.info(`AI service response status: ${response.status}`);
+
       if (!response.ok) {
-        throw new Error(`AI service responded with status: ${response.status}`);
+        const errorText = await response.text();
+        logger.error(`AI service error response: ${errorText}`);
+        throw new Error(`AI service responded with status: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      return data.matches || [];
+      logger.info(`AI service response has matches: ${!!data.matches}, matches length: ${data.matches?.length || 0}`);
+      
+      if (data.matches && data.matches.length > 0) {
+        logger.info(`First AI match sample: ${JSON.stringify(data.matches[0], null, 2)}`);
+      }
+      
+      if (!data.matches || data.matches.length === 0) {
+        logger.warn('AI service returned no matches, falling back to mock data');
+        return this.getMockMatches(request.user_id);
+      }
+      
+      return data.matches;
 
     } catch (error) {
       logger.error('Error calling AI service for matching:', error);
+      logger.info('Falling back to mock data');
       // Return mock data as fallback
       return this.getMockMatches(request.user_id);
     }
@@ -594,40 +622,63 @@ export class CollaborationService {
 
   private async storePeerMatch(requesterId: string, match: PeerMatch): Promise<void> {
     try {
-      const query = `
-        INSERT INTO peer_matches (
-          requester_id, matched_user_id, compatibility_score, 
-          shared_subjects, complementary_skills, common_goals,
-          availability_overlap, communication_match, match_reasons,
-          expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (requester_id, matched_user_id, status) 
-        WHERE status IN ('pending', 'accepted')
-        DO UPDATE SET 
-          compatibility_score = EXCLUDED.compatibility_score,
-          updated_at = NOW()
+      // First check if a similar match already exists
+      const existingQuery = `
+        SELECT id FROM peer_matches 
+        WHERE requester_id = $1 AND matched_user_id = $2 
+        AND status IN ('pending', 'accepted')
+        AND expires_at > NOW()
       `;
+      
+      const existing = await this.db.query(existingQuery, [requesterId, match.userId]);
+      
+      if (existing.rows.length > 0) {
+        // Update existing match
+        const updateQuery = `
+          UPDATE peer_matches 
+          SET compatibility_score = $3, updated_at = NOW()
+          WHERE id = $1
+        `;
+        await this.db.query(updateQuery, [existing.rows[0].id, requesterId, match.compatibilityScore]);
+        logger.info(`Updated existing peer match: ${requesterId} -> ${match.userId}`);
+      } else {
+        // Insert new match
+        const insertQuery = `
+          INSERT INTO peer_matches (
+            requester_id, matched_user_id, compatibility_score, 
+            shared_subjects, complementary_skills, common_goals,
+            availability_overlap, communication_match, match_reasons,
+            expires_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `;
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // Expire in 7 days
 
-      const values = [
-        requesterId,
-        match.userId,
-        match.compatibilityScore,
-        JSON.stringify(match.sharedInterests),
-        JSON.stringify(match.complementarySkills),
-        JSON.stringify([]), // common_goals - not in PeerMatch interface
-        JSON.stringify([]), // availability_overlap - not in PeerMatch interface  
-        JSON.stringify([]), // communication_match - not in PeerMatch interface
-        JSON.stringify([match.matchReason]),
-        expiresAt
-      ];
+        const values = [
+          requesterId,
+          match.userId,
+          match.compatibilityScore,
+          JSON.stringify(match.sharedInterests),
+          JSON.stringify(match.complementarySkills),
+          JSON.stringify([]), // common_goals - not in PeerMatch interface
+          JSON.stringify([]), // availability_overlap - not in PeerMatch interface  
+          JSON.stringify([]), // communication_match - not in PeerMatch interface
+          JSON.stringify([match.matchReason]),
+          expiresAt
+        ];
 
-      await this.db.query(query, values);
+        await this.db.query(insertQuery, values);
+        logger.info(`Stored new peer match: ${requesterId} -> ${match.userId}`);
+      }
 
-    } catch (error) {
-      logger.error('Error storing peer match:', error);
+    } catch (error: any) {
+      // Check if it's a foreign key constraint error (user doesn't exist)
+      if (error?.code === '23503') {
+        logger.warn(`Skipping peer match storage - user ${match.userId} not found in database`);
+      } else {
+        logger.error('Error storing peer match:', error);
+      }
       // Don't throw - this is not critical for the main flow
     }
   }
