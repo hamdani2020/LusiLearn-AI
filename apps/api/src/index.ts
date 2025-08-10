@@ -13,6 +13,7 @@ import { learningPathRouter, initializeLearningPathRoutes } from './routes/learn
 import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
 import { createCollaborationRoutes } from './routes';
+import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { errorHandler } from './middleware/error-handler';
 import { WebSocketService } from './services/websocket.service';
 import { CollaborationService } from './services/collaboration.service';
@@ -81,6 +82,7 @@ app.use('/api/v1/learning-paths', learningPathRouter);
 app.use('/api/v1/progress', createProgressRoutes(db.getPool()));
 app.use('/api/v1/adaptive-difficulty', createAdaptiveDifficultyRoutes(db.getPool()));
 app.use('/api/v1/collaboration', createCollaborationRoutes(db.getPool()));
+app.use('/api/v1/safety', createSafetyModerationRoutes(db.getPool()));
 
 // WebSocket status endpoint
 app.get('/api/v1/collaboration/active-sessions', (req, res) => {

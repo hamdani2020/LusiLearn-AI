@@ -16,8 +16,15 @@ import {
   StudyGroupSchema,
   PeerMatchSchema,
   CollaborationPreferencesSchema,
-  CreateStudyGroupSchema
+  CreateStudyGroupSchema,
+  AgeRange
 } from '@lusilearn/shared-types';
+import {
+  SafetyModerationService,
+  SafetyReportType,
+  SafetyCategory,
+  ConversationModerationResult
+} from './safety-moderation.service';
 
 // AI Service integration types
 interface AIServicePeerMatchRequest {
@@ -43,10 +50,14 @@ interface AIServicePeerMatch {
 }
 
 export class CollaborationService {
+  private safetyModerationService: SafetyModerationService;
+
   constructor(
     private db: Pool,
     private aiServiceUrl: string = process.env.AI_SERVICE_URL || 'http://ai-service:8001'
-  ) { }
+  ) {
+    this.safetyModerationService = new SafetyModerationService(this.db, this.aiServiceUrl);
+  }
 
   /**
    * Find peer matches using AI service recommendations
@@ -79,7 +90,7 @@ export class CollaborationService {
       // Convert AI matches to our format and store in database
       const peerMatches: PeerMatch[] = [];
       logger.info(`Converting ${aiMatches.length} AI matches to PeerMatch format`);
-      
+
       for (const aiMatch of aiMatches) {
         try {
           const peerMatch: PeerMatch = {
@@ -94,7 +105,7 @@ export class CollaborationService {
           // Store match in database
           await this.storePeerMatch(userId, peerMatch);
           peerMatches.push(peerMatch);
-          
+
           logger.info(`Converted match: ${peerMatch.userId} with score ${peerMatch.compatibilityScore}`);
         } catch (error) {
           logger.error(`Error converting AI match:`, error);
@@ -398,14 +409,223 @@ export class CollaborationService {
   }
 
   /**
-   * Basic content moderation (placeholder for more advanced implementation)
+   * Moderate conversation message with enhanced safety features
+   */
+  async moderateConversationMessage(
+    sessionId: string,
+    userId: string,
+    message: string,
+    messageType: string = 'text',
+    metadata?: Record<string, any>
+  ): Promise<ConversationModerationResult> {
+    try {
+      logger.info(`Moderating conversation message in session ${sessionId} from user ${userId}`);
+
+      // Use the safety moderation service for comprehensive moderation
+      const result = await this.safetyModerationService.moderateConversationMessage(
+        sessionId,
+        userId,
+        message,
+        messageType,
+        metadata
+      );
+
+      // Log the moderation result for audit purposes
+      await this.logModerationResult(sessionId, userId, message, result);
+
+      return result;
+
+    } catch (error) {
+      logger.error('Error moderating conversation message:', error);
+      throw new Error(`Failed to moderate message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create a safety report for inappropriate behavior or content
+   */
+  async createSafetyReport(
+    reporterId: string,
+    reportData: {
+      reportedUserId?: string;
+      reportedContentId?: string;
+      sessionId?: string;
+      groupId?: string;
+      type: SafetyReportType;
+      category: SafetyCategory;
+      description: string;
+      evidence?: any[];
+    }
+  ) {
+    try {
+      logger.info(`Creating safety report from user ${reporterId}`);
+
+      const report = await this.safetyModerationService.createSafetyReport(reporterId, reportData);
+
+      // If the report involves a study group, notify group moderators
+      if (reportData.groupId) {
+        await this.notifyGroupModerators(reportData.groupId, report);
+      }
+
+      return report;
+
+    } catch (error) {
+      logger.error('Error creating safety report:', error);
+      throw new Error(`Failed to create safety report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Validate if a minor user can safely participate in a collaboration session
+   */
+  async validateMinorParticipation(
+    minorUserId: string,
+    sessionId: string,
+    participants: string[]
+  ) {
+    try {
+      logger.info(`Validating minor participation for user ${minorUserId} in session ${sessionId}`);
+
+      const validation = await this.safetyModerationService.validateMinorCollaboration(
+        minorUserId,
+        sessionId,
+        participants
+      );
+
+      // If validation fails, log the reason and take appropriate action
+      if (!validation.isAllowed) {
+        logger.warn(`Minor participation denied:`, {
+          minorUserId,
+          sessionId,
+          reason: validation.reason,
+          restrictions: validation.restrictions
+        });
+
+        // Optionally remove the minor from the session if they're already in it
+        if (participants.includes(minorUserId)) {
+          await this.removeUserFromSession(sessionId, minorUserId, 'safety_restriction');
+        }
+      }
+
+      return validation;
+
+    } catch (error) {
+      logger.error('Error validating minor participation:', error);
+      throw new Error(`Failed to validate minor participation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Enhanced study group creation with safety checks
+   */
+  async createStudyGroupWithSafetyChecks(
+    creatorId: string,
+    groupData: z.infer<typeof CreateStudyGroupSchema>
+  ): Promise<StudyGroup> {
+    try {
+      logger.info(`Creating study group with safety checks for user ${creatorId}`);
+
+      // Check if creator is a minor and apply appropriate restrictions
+      const userProfile = await this.getUserProfile(creatorId);
+      const isMinor = this.isUserMinor(userProfile?.age_range);
+
+      if (isMinor) {
+        // Apply stricter moderation for groups created by minors
+        if (groupData.moderationLevel === ModerationLevel.MINIMAL) {
+          groupData.moderationLevel = ModerationLevel.MODERATE;
+          logger.info(`Upgraded moderation level to MODERATE for minor user ${creatorId}`);
+        }
+
+        // Ensure privacy is not completely public for minors
+        if (groupData.privacy === PrivacyLevel.PUBLIC) {
+          groupData.privacy = PrivacyLevel.FRIENDS;
+          logger.info(`Changed privacy to FRIENDS for minor user ${creatorId}`);
+        }
+      }
+
+      // Create the study group
+      const studyGroup = await this.createStudyGroup(creatorId, groupData);
+
+      // Set up enhanced monitoring for groups with minors
+      if (isMinor) {
+        await this.setupMinorGroupMonitoring(studyGroup.id);
+      }
+
+      return studyGroup;
+
+    } catch (error) {
+      logger.error('Error creating study group with safety checks:', error);
+      throw new Error(`Failed to create study group: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Enhanced participant addition with safety validation
+   */
+  async addParticipantWithSafetyChecks(
+    groupId: string,
+    userId: string,
+    requesterId: string
+  ): Promise<StudyGroup> {
+    try {
+      logger.info(`Adding participant ${userId} to group ${groupId} with safety checks`);
+
+      // Get group information
+      const group = await this.getStudyGroup(groupId);
+      if (!group) {
+        throw new Error('Study group not found');
+      }
+
+      // Check if the new participant is a minor
+      const userProfile = await this.getUserProfile(userId);
+      const isMinor = this.isUserMinor(userProfile?.age_range);
+
+      // Check age restrictions
+      if (group.settings.ageRestrictions.length > 0) {
+        const userAgeRange = userProfile?.age_range;
+        if (userAgeRange && !group.settings.ageRestrictions.includes(userAgeRange)) {
+          throw new Error(`User age range ${userAgeRange} not allowed in this group`);
+        }
+      }
+
+      // If adding a minor, perform additional safety checks
+      if (isMinor) {
+        const currentParticipants = group.participants.map(p => p.userId);
+        const validation = await this.validateMinorParticipation(
+          userId,
+          `group_${groupId}`, // Use group ID as session ID for validation
+          currentParticipants
+        );
+
+        if (!validation.isAllowed) {
+          throw new Error(`Minor participation not allowed: ${validation.reason}`);
+        }
+      }
+
+      // Add the participant
+      const updatedGroup = await this.addParticipant(groupId, userId, requesterId);
+
+      // Set up monitoring if a minor was added
+      if (isMinor) {
+        await this.setupMinorGroupMonitoring(groupId);
+      }
+
+      return updatedGroup;
+
+    } catch (error) {
+      logger.error('Error adding participant with safety checks:', error);
+      throw new Error(`Failed to add participant: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Basic content moderation (legacy method - kept for backward compatibility)
    */
   async moderateInteraction(interactionId: string): Promise<ModerationResult> {
     try {
-      // This is a basic implementation - in production, this would integrate
-      // with AI-based content moderation services
-      logger.info(`Moderating interaction ${interactionId}`);
+      logger.info(`Moderating interaction ${interactionId} (legacy method)`);
 
+      // For backward compatibility, return a basic result
       return {
         isAppropriate: true,
         severity: 'low',
@@ -574,16 +794,16 @@ export class CollaborationService {
 
       const data = await response.json();
       logger.info(`AI service response has matches: ${!!data.matches}, matches length: ${data.matches?.length || 0}`);
-      
+
       if (data.matches && data.matches.length > 0) {
         logger.info(`First AI match sample: ${JSON.stringify(data.matches[0], null, 2)}`);
       }
-      
+
       if (!data.matches || data.matches.length === 0) {
         logger.warn('AI service returned no matches, falling back to mock data');
         return this.getMockMatches(request.user_id);
       }
-      
+
       return data.matches;
 
     } catch (error) {
@@ -629,9 +849,9 @@ export class CollaborationService {
         AND status IN ('pending', 'accepted')
         AND expires_at > NOW()
       `;
-      
+
       const existing = await this.db.query(existingQuery, [requesterId, match.userId]);
-      
+
       if (existing.rows.length > 0) {
         // Update existing match
         const updateQuery = `
@@ -680,6 +900,223 @@ export class CollaborationService {
         logger.error('Error storing peer match:', error);
       }
       // Don't throw - this is not critical for the main flow
+    }
+  }
+
+  // Additional helper methods for safety and moderation
+
+  private async logModerationResult(
+    sessionId: string,
+    userId: string,
+    message: string,
+    result: ConversationModerationResult
+  ): Promise<void> {
+    try {
+      const query = `
+        INSERT INTO conversation_moderation_log (
+          session_id, user_id, message_content, moderation_result, 
+          action_taken, is_appropriate, confidence_score, flags
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `;
+
+      const values = [
+        sessionId,
+        userId,
+        message,
+        JSON.stringify(result),
+        result.action,
+        result.isAppropriate,
+        result.confidence,
+        JSON.stringify(result.flags)
+      ];
+
+      await this.db.query(query, values);
+
+    } catch (error) {
+      logger.error('Error logging moderation result:', error);
+    }
+  }
+
+  private async notifyGroupModerators(groupId: string, report: any): Promise<void> {
+    try {
+      logger.info(`Notifying group moderators for group ${groupId} about report ${report.id}`);
+
+      // Get group moderators
+      const group = await this.getStudyGroup(groupId);
+      if (!group) {
+        return;
+      }
+
+      const moderators = group.participants.filter(p =>
+        p.role === 'admin' || p.role === 'moderator'
+      );
+
+      // Send notifications to each moderator
+      for (const moderator of moderators) {
+        await this.sendModeratorNotification(moderator.userId, {
+          type: 'safety_report',
+          title: `Safety Report in Group: ${group.name}`,
+          description: `A safety report has been filed in your study group: ${report.description.substring(0, 100)}...`,
+          groupId: groupId,
+          reportId: report.id
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error notifying group moderators:', error);
+    }
+  }
+
+  private async removeUserFromSession(
+    sessionId: string,
+    userId: string,
+    reason: string = 'moderation_action'
+  ): Promise<void> {
+    try {
+      logger.info(`Removing user ${userId} from session ${sessionId}, reason: ${reason}`);
+
+      // Update session data to remove the user
+      const query = `
+        UPDATE collaboration_session_data 
+        SET activities = activities || $1
+        WHERE session_id = $2
+      `;
+
+      const removalActivity = {
+        type: 'user_removed',
+        user_id: userId,
+        reason: reason,
+        timestamp: new Date().toISOString()
+      };
+
+      await this.db.query(query, [
+        JSON.stringify([removalActivity]),
+        sessionId
+      ]);
+
+      // Optionally send notification to the user
+      await this.sendUserNotification(userId, {
+        type: 'session_removal',
+        title: 'Removed from Collaboration Session',
+        description: `You have been removed from the collaboration session due to: ${reason}`,
+        sessionId: sessionId
+      });
+
+    } catch (error) {
+      logger.error('Error removing user from session:', error);
+    }
+  }
+
+  private isUserMinor(ageRange?: string): boolean {
+    return ageRange === AgeRange.CHILD || ageRange === AgeRange.TEEN;
+  }
+
+  private async setupMinorGroupMonitoring(groupId: string): Promise<void> {
+    try {
+      logger.info(`Setting up enhanced monitoring for group ${groupId} with minor participants`);
+
+      // Create a monitoring record
+      const query = `
+        INSERT INTO group_monitoring (
+          group_id, monitoring_level, enabled_features, created_at
+        ) VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (group_id) DO UPDATE SET
+          monitoring_level = $2,
+          enabled_features = $3,
+          updated_at = NOW()
+      `;
+
+      const monitoringFeatures = [
+        'enhanced_content_filtering',
+        'real_time_message_scanning',
+        'automatic_escalation',
+        'parental_notifications',
+        'session_time_limits'
+      ];
+
+      await this.db.query(query, [
+        groupId,
+        'enhanced',
+        JSON.stringify(monitoringFeatures)
+      ]);
+
+    } catch (error) {
+      logger.error('Error setting up minor group monitoring:', error);
+    }
+  }
+
+  private async sendModeratorNotification(
+    moderatorId: string,
+    notification: {
+      type: string;
+      title: string;
+      description: string;
+      groupId?: string;
+      reportId?: string;
+    }
+  ): Promise<void> {
+    try {
+      // This would integrate with a notification service
+      logger.info(`Sending moderator notification to ${moderatorId}:`, notification);
+
+      // Store notification in database
+      const query = `
+        INSERT INTO user_notifications (
+          user_id, type, title, description, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+      `;
+
+      const metadata = {
+        group_id: notification.groupId,
+        report_id: notification.reportId
+      };
+
+      await this.db.query(query, [
+        moderatorId,
+        notification.type,
+        notification.title,
+        notification.description,
+        JSON.stringify(metadata)
+      ]);
+
+    } catch (error) {
+      logger.error('Error sending moderator notification:', error);
+    }
+  }
+
+  private async sendUserNotification(
+    userId: string,
+    notification: {
+      type: string;
+      title: string;
+      description: string;
+      sessionId?: string;
+    }
+  ): Promise<void> {
+    try {
+      logger.info(`Sending user notification to ${userId}:`, notification);
+
+      // Store notification in database
+      const query = `
+        INSERT INTO user_notifications (
+          user_id, type, title, description, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+      `;
+
+      const metadata = {
+        session_id: notification.sessionId
+      };
+
+      await this.db.query(query, [
+        userId,
+        notification.type,
+        notification.title,
+        notification.description,
+        JSON.stringify(metadata)
+      ]);
+
+    } catch (error) {
+      logger.error('Error sending user notification:', error);
     }
   }
 }
