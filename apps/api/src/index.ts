@@ -11,8 +11,11 @@ import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
-import { errorHandler } from './middleware/error-handler';
+import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
 import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
+import { HealthCheckService } from './services/health-check.service';
+import { PerformanceMonitoringService } from './services/performance-monitoring.service';
+import { createMonitoringRoutes } from './routes/monitoring.routes';
 import { setupSecurityMiddleware, authRateLimit, apiRateLimit } from './middleware/security';
 import { APIGateway, GatewayConfig, RouteConfig } from './gateway/api-gateway';
 import { WebSocketService } from './services/websocket.service';
@@ -49,9 +52,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(monitoringMiddleware);
 app.use(securityMonitoringMiddleware);
 
+// Setup global error handlers
+setupGlobalErrorHandlers();
+
 // Initialize services
 const collaborationService = new CollaborationService(db.getPool());
 const webSocketService = new WebSocketService(httpServer, db.getPool(), collaborationService);
+
+// Initialize monitoring services
+const healthCheckService = HealthCheckService.getInstance();
+const performanceMonitoringService = PerformanceMonitoringService.getInstance();
+
+// Initialize health check service with database pool
+healthCheckService.initialize(db.getPool());
 
 // Initialize learning path routes with database pool
 initializeLearningPathRoutes(db.getPool());
@@ -167,6 +180,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 30 // Limited for safety/moderation endpoints
+    }
+  },
+  {
+    path: '/monitoring',
+    router: createMonitoringRoutes(),
+    version: 'v1',
+    requiresAuth: false, // Health checks should be accessible without auth
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 100 // Higher limit for monitoring endpoints
     }
   }
 ];
