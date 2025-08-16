@@ -1,9 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
-import cors from 'cors';
-import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
 import { logger } from './utils/logger';
 import { db } from './database/connection';
 import { authRouter } from './routes/auth';
@@ -16,6 +13,7 @@ import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { errorHandler } from './middleware/error-handler';
 import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
+import { setupSecurityMiddleware, authRateLimit, apiRateLimit } from './middleware/security';
 import { APIGateway, GatewayConfig, RouteConfig } from './gateway/api-gateway';
 import { WebSocketService } from './services/websocket.service';
 import { CollaborationService } from './services/collaboration.service';
@@ -24,35 +22,32 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+// Setup comprehensive security middleware
+setupSecurityMiddleware(app, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Version'],
+  },
+  rateLimit: {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+  },
+  https: {
+    enforceHttps: process.env.NODE_ENV === 'production',
+    trustProxy: true,
+  },
+});
 
 // General middleware
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Monitoring middleware (before rate limiting)
+// Monitoring middleware (after security, before routes)
 app.use(monitoringMiddleware);
 app.use(securityMonitoringMiddleware);
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Rate Limit Exceeded',
-    message: 'Too many requests from this IP, please try again later.',
-    retryAfter: 900 // 15 minutes in seconds
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
 
 // Initialize services
 const collaborationService = new CollaborationService(db.getPool());
@@ -90,7 +85,7 @@ apiGateway.setupAPIDocumentation();
 // Setup backward compatibility
 apiGateway.setupBackwardCompatibility();
 
-// Register all routes with the API Gateway
+// Register all routes with the API Gateway with enhanced security
 const routeConfigs: RouteConfig[] = [
   {
     path: '/auth',
@@ -99,7 +94,9 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: false,
     rateLimit: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 20 // More restrictive for auth endpoints
+      max: 5, // Very restrictive for auth endpoints to prevent brute force
+      skipSuccessfulRequests: false,
+      skipFailedRequests: false,
     }
   },
   {
@@ -109,7 +106,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 50
+      max: 50 // Standard rate limit for user operations
     }
   },
   {
@@ -119,7 +116,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 30
+      max: 30 // Limited for assessment endpoints
     }
   },
   {
@@ -129,7 +126,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 40
+      max: 40 // Moderate limit for learning path operations
     }
   },
   {
@@ -139,7 +136,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 60
+      max: 60 // Higher limit for frequent progress updates
     }
   },
   {
@@ -149,7 +146,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 40
+      max: 40 // Moderate limit for AI-powered features
     }
   },
   {
@@ -159,7 +156,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 50
+      max: 50 // Standard limit for collaboration features
     }
   },
   {
@@ -169,7 +166,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: true,
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      max: 30
+      max: 30 // Limited for safety/moderation endpoints
     }
   }
 ];

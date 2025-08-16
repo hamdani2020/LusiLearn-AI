@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction, Router } from 'express';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { createRateLimitMiddleware, createValidationMiddleware } from '../middleware/security';
 
 export interface RouteConfig {
   path: string;
@@ -10,6 +10,8 @@ export interface RouteConfig {
   rateLimit?: {
     windowMs: number;
     max: number;
+    skipSuccessfulRequests?: boolean;
+    skipFailedRequests?: boolean;
   };
   deprecated?: boolean;
   deprecationMessage?: string;
@@ -199,18 +201,7 @@ export class APIGateway {
 
     // Add rate limiting if specified
     if (config.rateLimit) {
-      const rateLimit = require('express-rate-limit');
-      const limiter = rateLimit({
-        windowMs: config.rateLimit.windowMs,
-        max: config.rateLimit.max,
-        message: {
-          error: 'Rate Limit Exceeded',
-          message: `Too many requests to ${fullPath}`,
-          retryAfter: Math.ceil(config.rateLimit.windowMs / 1000)
-        },
-        standardHeaders: true,
-        legacyHeaders: false,
-      });
+      const limiter = createRateLimitMiddleware(config.rateLimit);
       middlewares.push(limiter);
     }
 
