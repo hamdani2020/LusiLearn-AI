@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
 import { authenticateToken } from '../middleware/auth';
+import { createValidationMiddleware, commonSchemas } from '../middleware/security';
 import { SafetyModerationService, SafetyReportType, SafetyCategory } from '../services/safety-moderation.service';
 import { CollaborationService } from '../services/collaboration.service';
 
@@ -67,49 +68,44 @@ export function createSafetyModerationRoutes(db: Pool): Router {
    * POST /api/v1/safety/reports
    * Create a new safety report
    */
-  router.post('/reports', authenticateToken, async (req, res) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ error: 'User not authenticated' });
-      }
+  router.post('/reports', 
+    authenticateToken, 
+    createValidationMiddleware({ body: CreateSafetyReportSchema }), 
+    async (req, res) => {
+      try {
+        const userId = req.user?.id;
+        if (!userId) {
+          return res.status(401).json({ error: 'User not authenticated' });
+        }
 
-      const validatedData = CreateSafetyReportSchema.parse(req.body);
+        const validatedData = req.body; // Already validated by middleware
 
-      // Ensure at least one target is specified
-      if (!validatedData.reportedUserId && !validatedData.reportedContentId &&
-        !validatedData.sessionId && !validatedData.groupId) {
-        return res.status(400).json({
-          error: 'At least one target must be specified (user, content, session, or group)'
+        // Ensure at least one target is specified
+        if (!validatedData.reportedUserId && !validatedData.reportedContentId &&
+          !validatedData.sessionId && !validatedData.groupId) {
+          return res.status(400).json({
+            error: 'At least one target must be specified (user, content, session, or group)'
+          });
+        }
+
+        const report = await collaborationService.createSafetyReport(userId, validatedData);
+
+        logger.info(`Safety report created: ${report.id} by user ${userId}`);
+
+        res.status(201).json({
+          success: true,
+          data: report,
+          message: 'Safety report created successfully'
+        });
+
+      } catch (error) {
+        logger.error('Error creating safety report:', error);
+        res.status(500).json({
+          error: 'Failed to create safety report',
+          message: error instanceof Error ? error.message : 'Unknown error'
         });
       }
-
-      const report = await collaborationService.createSafetyReport(userId, validatedData);
-
-      logger.info(`Safety report created: ${report.id} by user ${userId}`);
-
-      res.status(201).json({
-        success: true,
-        data: report,
-        message: 'Safety report created successfully'
-      });
-
-    } catch (error) {
-      logger.error('Error creating safety report:', error);
-
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          details: error.errors
-        });
-      }
-
-      res.status(500).json({
-        error: 'Failed to create safety report',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
+    });
 
   /**
    * GET /api/v1/safety/reports
