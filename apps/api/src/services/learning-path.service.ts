@@ -5,20 +5,28 @@ import {
   LearningObjective,
   Milestone,
   PathAdaptation,
-  PerformanceData
+  PerformanceData,
+  DifficultyAdjustmentResult,
+  ContentSequenceResult,
+  CompetencyTestResult,
+  OptimalChallengeAnalysis,
+  LearningSession
 } from '@lusilearn/shared-types';
 import { LearningPathRepository, CreateLearningPathRequest, UpdateLearningPathRequest, ShareLearningPathRequest } from '../repositories/learning-path.repository';
 import { UserService } from './user.service';
+import { AdaptiveDifficultyService } from './adaptive-difficulty.service';
 import { logger } from '../utils/logger';
 import { Pool } from 'pg';
 
 export class LearningPathService {
   private learningPathRepository: LearningPathRepository;
   private userService: UserService;
+  private adaptiveDifficultyService: AdaptiveDifficultyService;
 
   constructor(pool: Pool) {
     this.learningPathRepository = new LearningPathRepository(pool);
     this.userService = new UserService();
+    this.adaptiveDifficultyService = new AdaptiveDifficultyService(pool);
   }
 
   async generatePath(userId: string, subject: string, goals: LearningGoal[]): Promise<LearningPath> {
@@ -181,6 +189,162 @@ export class LearningPathService {
       return success;
     } catch (error) {
       logger.error('Error deleting learning path:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Adaptive Difficulty System Methods
+   */
+
+  /**
+   * Analyze performance and adjust difficulty if needed
+   */
+  async adaptDifficulty(userId: string, pathId: string, recentSessions: LearningSession[]): Promise<DifficultyAdjustmentResult | null> {
+    try {
+      const adjustmentResult = await this.adaptiveDifficultyService.analyzePerformanceForDifficultyAdjustment(
+        userId, 
+        pathId, 
+        recentSessions
+      );
+
+      if (adjustmentResult) {
+        // Apply the difficulty adjustment
+        await this.adaptiveDifficultyService.applyDifficultyAdjustment(pathId, adjustmentResult);
+        
+        logger.info(`Applied difficulty adjustment for user ${userId}`, {
+          pathId,
+          newDifficulty: adjustmentResult.newDifficulty,
+          reason: adjustmentResult.reason
+        });
+      }
+
+      return adjustmentResult;
+    } catch (error) {
+      logger.error('Error adapting difficulty:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get next content based on prerequisite mastery
+   */
+  async getNextContent(userId: string, pathId: string): Promise<ContentSequenceResult> {
+    try {
+      return await this.adaptiveDifficultyService.sequenceContentByPrerequisites(userId, pathId);
+    } catch (error) {
+      logger.error('Error getting next content:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Conduct competency test for advancement
+   */
+  async requestAdvancement(userId: string, pathId: string, requestedLevel: DifficultyLevel): Promise<CompetencyTestResult> {
+    try {
+      const testResult = await this.adaptiveDifficultyService.conductCompetencyTest(
+        userId, 
+        pathId, 
+        requestedLevel
+      );
+
+      // If test passed, apply the advancement
+      if (testResult.passed && testResult.readyForAdvancement) {
+        const adaptation: PathAdaptation = {
+          timestamp: new Date(),
+          reason: `User-requested advancement approved via competency test (score: ${testResult.score}%)`,
+          changes: {
+            difficultyAdjustment: requestedLevel
+          }
+        };
+
+        await this.learningPathRepository.update(pathId, {
+          currentLevel: requestedLevel
+        });
+
+        await this.learningPathRepository.addAdaptation(pathId, adaptation);
+
+        logger.info(`User advancement approved for user ${userId}`, {
+          pathId,
+          newLevel: requestedLevel,
+          testScore: testResult.score
+        });
+      }
+
+      return testResult;
+    } catch (error) {
+      logger.error('Error processing advancement request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Maintain optimal challenge level (70-85% comprehension)
+   */
+  async maintainOptimalChallenge(userId: string, pathId: string): Promise<OptimalChallengeAnalysis> {
+    try {
+      const analysis = await this.adaptiveDifficultyService.maintainOptimalChallengeLevel(userId, pathId);
+      
+      logger.info(`Optimal challenge analysis completed for user ${userId}`, {
+        pathId,
+        currentLevel: analysis.currentChallengeLevel,
+        isOptimal: analysis.isOptimal,
+        adjustment: analysis.adjustment
+      });
+
+      return analysis;
+    } catch (error) {
+      logger.error('Error maintaining optimal challenge level:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enhanced progress update with adaptive difficulty
+   */
+  async updateProgressWithAdaptation(pathId: string, performanceData: PerformanceData, recentSessions: LearningSession[]): Promise<LearningPath | null> {
+    try {
+      const currentPath = await this.learningPathRepository.findById(pathId);
+      if (!currentPath) {
+        return null;
+      }
+
+      // Calculate new progress based on performance
+      const newProgress = this.calculateProgress(currentPath, performanceData);
+      
+      // Use adaptive difficulty service for more sophisticated analysis
+      const difficultyAdjustment = await this.adaptiveDifficultyService.analyzePerformanceForDifficultyAdjustment(
+        currentPath.userId,
+        pathId,
+        recentSessions
+      );
+      
+      const updates: UpdateLearningPathRequest = {
+        progress: newProgress
+      };
+
+      if (difficultyAdjustment) {
+        updates.currentLevel = difficultyAdjustment.newDifficulty;
+        
+        // Add adaptation record with detailed reasoning
+        const adaptation: PathAdaptation = {
+          timestamp: new Date(),
+          reason: difficultyAdjustment.reason,
+          changes: {
+            difficultyAdjustment: difficultyAdjustment.newDifficulty
+          }
+        };
+        
+        await this.learningPathRepository.addAdaptation(pathId, adaptation);
+      }
+
+      // Also check optimal challenge level
+      await this.maintainOptimalChallenge(currentPath.userId, pathId);
+
+      return await this.learningPathRepository.update(pathId, updates);
+    } catch (error) {
+      logger.error('Error updating learning path progress with adaptation:', error);
       throw error;
     }
   }

@@ -481,35 +481,40 @@ class PeerMatchingEngine:
             return 0.5
     
     async def _get_candidate_peers(self, request: PeerMatchingRequest) -> List[Dict[str, Any]]:
-        """Get candidate peers for matching."""
+        """Get candidate peers for matching with proper UUIDs."""
         try:
-            candidates = []
-            education_levels = [EducationLevel.K12, EducationLevel.COLLEGE, EducationLevel.PROFESSIONAL]
-            subjects = ["mathematics", "science", "programming", "history", "language"]
+            import uuid
             
-            for i in range(20):
-                peer_id = f"peer_{request.user_id}_{i}"
+            candidates = []
+            base_subjects = ["javascript", "python", "mathematics", "science", "programming", "web-development"]
+            education_levels = ["k12", "college", "professional"]
+            
+            for i in range(10):
+                # Generate a proper UUID for each mock user
+                peer_id = str(uuid.uuid4())
+                
                 peer = {
                     "user_id": peer_id,
                     "education_level": education_levels[i % len(education_levels)],
-                    "subjects": subjects[i % len(subjects):i % len(subjects) + 2],
+                    "subjects": base_subjects[i % len(base_subjects):i % len(base_subjects) + 2] or [base_subjects[0]],
                     "skill_levels": {
-                        subjects[i % len(subjects)]: list(DifficultyLevel)[i % 3]
+                        base_subjects[i % len(base_subjects)]: ["beginner", "intermediate", "advanced"][i % 3]
                     },
                     "learning_goals": [
-                        f"learn {subjects[i % len(subjects)]}",
-                        f"master {subjects[(i + 1) % len(subjects)]}"
+                        f"learn {base_subjects[i % len(base_subjects)]}",
+                        f"improve skills in {base_subjects[(i + 1) % len(base_subjects)]}"
                     ],
                     "availability": {
                         "monday": ["09:00-11:00", "14:00-16:00"],
                         "wednesday": ["10:00-12:00"],
                         "friday": ["15:00-17:00"]
                     },
-                    "communication_preferences": ["video_call", "chat", "email"][:(i % 3) + 1],
+                    "communication_preferences": ["video_call", "chat", "email"][:(i % 3) + 1] or ["chat"],
                     "age_range": "18-25" if i % 3 == 0 else "25-35"
                 }
                 candidates.append(peer)
             
+            logger.info(f"Generated {len(candidates)} candidate peers with proper UUIDs")
             return [peer for peer in candidates if peer["user_id"] != request.user_id]
         except Exception as e:
             logger.error(f"Error getting candidate peers: {e}")
