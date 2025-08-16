@@ -15,6 +15,8 @@ import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.rou
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { errorHandler } from './middleware/error-handler';
+import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
+import { APIGateway, GatewayConfig, RouteConfig } from './gateway/api-gateway';
 import { WebSocketService } from './services/websocket.service';
 import { CollaborationService } from './services/collaboration.service';
 
@@ -34,38 +36,23 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Monitoring middleware (before rate limiting)
+app.use(monitoringMiddleware);
+app.use(securityMonitoringMiddleware);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  message: {
+    error: 'Rate Limit Exceeded',
+    message: 'Too many requests from this IP, please try again later.',
+    retryAfter: 900 // 15 minutes in seconds
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(limiter);
-
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    const dbHealth = await db.healthCheck();
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      services: {
-        database: dbHealth ? 'healthy' : 'unhealthy'
-      }
-    });
-  } catch (error) {
-    logger.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'error',
-      timestamp: new Date().toISOString(),
-      services: {
-        database: 'unhealthy'
-      }
-    });
-  }
-});
 
 // Initialize services
 const collaborationService = new CollaborationService(db.getPool());
@@ -74,17 +61,123 @@ const webSocketService = new WebSocketService(httpServer, db.getPool(), collabor
 // Initialize learning path routes with database pool
 initializeLearningPathRoutes(db.getPool());
 
-// API routes
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/users', userRouter);
-app.use('/api/v1/assessments', assessmentRouter);
-app.use('/api/v1/learning-paths', learningPathRouter);
-app.use('/api/v1/progress', createProgressRoutes(db.getPool()));
-app.use('/api/v1/adaptive-difficulty', createAdaptiveDifficultyRoutes(db.getPool()));
-app.use('/api/v1/collaboration', createCollaborationRoutes(db.getPool()));
-app.use('/api/v1/safety', createSafetyModerationRoutes(db.getPool()));
+// Configure API Gateway
+const gatewayConfig: GatewayConfig = {
+  basePath: '/api',
+  defaultVersion: 'v1',
+  supportedVersions: ['v1', 'v2'], // v2 for future use
+  enableRequestLogging: true,
+  enableResponseLogging: true
+};
 
-// WebSocket status endpoint
+const apiGateway = new APIGateway(app, gatewayConfig);
+
+// Setup health check with custom health function
+apiGateway.setupHealthCheck(async () => {
+  const dbHealth = await db.healthCheck();
+  return {
+    services: {
+      database: dbHealth ? 'healthy' : 'unhealthy',
+      websocket: webSocketService ? 'healthy' : 'unhealthy',
+      collaboration: collaborationService ? 'healthy' : 'unhealthy'
+    }
+  };
+});
+
+// Setup API documentation endpoints
+apiGateway.setupAPIDocumentation();
+
+// Setup backward compatibility
+apiGateway.setupBackwardCompatibility();
+
+// Register all routes with the API Gateway
+const routeConfigs: RouteConfig[] = [
+  {
+    path: '/auth',
+    router: authRouter,
+    version: 'v1',
+    requiresAuth: false,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 20 // More restrictive for auth endpoints
+    }
+  },
+  {
+    path: '/users',
+    router: userRouter,
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 50
+    }
+  },
+  {
+    path: '/assessments',
+    router: assessmentRouter,
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 30
+    }
+  },
+  {
+    path: '/learning-paths',
+    router: learningPathRouter,
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 40
+    }
+  },
+  {
+    path: '/progress',
+    router: createProgressRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 60
+    }
+  },
+  {
+    path: '/adaptive-difficulty',
+    router: createAdaptiveDifficultyRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 40
+    }
+  },
+  {
+    path: '/collaboration',
+    router: createCollaborationRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 50
+    }
+  },
+  {
+    path: '/safety',
+    router: createSafetyModerationRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 30
+    }
+  }
+];
+
+// Register all routes
+apiGateway.registerRoutes(routeConfigs);
+
+// WebSocket status endpoint (special case, not going through gateway)
 app.get('/api/v1/collaboration/active-sessions', (req, res) => {
   const activeSessions = webSocketService.getActiveCollaborations();
   res.json({
@@ -96,6 +189,10 @@ app.get('/api/v1/collaboration/active-sessions', (req, res) => {
     }
   });
 });
+
+// Monitoring endpoints
+app.get('/api/metrics', createMetricsEndpoint());
+app.get('/api/metrics/detailed', createDetailedMetricsEndpoint());
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
