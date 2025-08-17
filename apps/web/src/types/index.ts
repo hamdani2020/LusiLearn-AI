@@ -90,3 +90,121 @@ export interface UserProfile {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Content-related types
+export enum ContentSource {
+  YOUTUBE = 'youtube',
+  KHAN_ACADEMY = 'khan_academy',
+  COURSERA = 'coursera',
+  GITHUB = 'github',
+  INTERNAL = 'internal'
+}
+
+export enum ContentFormat {
+  VIDEO = 'video',
+  ARTICLE = 'article',
+  INTERACTIVE = 'interactive',
+  QUIZ = 'quiz',
+  PROJECT = 'project',
+  TUTORIAL = 'tutorial'
+}
+
+export enum DifficultyLevel {
+  BEGINNER = 'beginner',
+  INTERMEDIATE = 'intermediate',
+  ADVANCED = 'advanced',
+  EXPERT = 'expert'
+}
+
+export enum AgeRating {
+  ALL_AGES = 'all_ages',
+  TEEN = 'teen',
+  ADULT = 'adult'
+}
+
+export interface ContentMetadata {
+  duration: number;
+  difficulty: DifficultyLevel;
+  subject: string;
+  topics: string[];
+  format: ContentFormat;
+  language: string;
+}
+
+export interface QualityMetrics {
+  userRating: number;
+  completionRate: number;
+  effectivenessScore: number;
+  lastUpdated: Date;
+}
+
+export interface ContentItem {
+  id: string;
+  source: ContentSource;
+  externalId: string;
+  url: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string;
+  metadata: ContentMetadata;
+  qualityMetrics: QualityMetrics;
+  ageRating: AgeRating;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContentRecommendation {
+  content: ContentItem;
+  relevanceScore: number;
+  reason: string;
+  matchedSkills: string[];
+}
+
+export interface ContentSearchQuery {
+  query?: string;
+  subject?: string;
+  difficulty?: DifficultyLevel;
+  format?: ContentFormat;
+  source?: ContentSource;
+  ageRating?: AgeRating;
+  duration?: {
+    min?: number;
+    max?: number;
+  };
+  page?: number;
+  limit?: number;
+}
+
+export interface ContentSearchResult {
+  items: ContentItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  filters: {
+    subjects: string[];
+    difficulties: DifficultyLevel[];
+    formats: ContentFormat[];
+    sources: ContentSource[];
+  };
+}
+
+export interface BookmarkedContent {
+  id: string;
+  userId: string;
+  contentId: string;
+  content: ContentItem;
+  tags: string[];
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface ContentInteraction {
+  id: string;
+  userId: string;
+  contentId: string;
+  interactionType: 'view' | 'complete' | 'bookmark' | 'rate' | 'share';
+  duration?: number;
+  progress?: number;
+  rating?: number;
+  timestamp: Date;
+}

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -11,12 +12,18 @@ import {
   Users, 
   Target,
   User,
-  Settings
+  Settings,
+  Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function MainNav() {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const navItems = [
     {
@@ -28,6 +35,11 @@ export function MainNav() {
       title: 'Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard
+    },
+    {
+      title: 'Content',
+      href: '/content',
+      icon: Search
     },
     {
       title: 'Learning Paths',
@@ -67,7 +79,7 @@ export function MainNav() {
               href={item.href}
               className={cn(
                 "flex items-center space-x-1 transition-colors hover:text-foreground/80",
-                pathname === item.href ? "text-foreground" : "text-foreground/60"
+                mounted && pathname === item.href ? "text-foreground" : "text-foreground/60"
               )}
             >
               <item.icon className="h-4 w-4" />

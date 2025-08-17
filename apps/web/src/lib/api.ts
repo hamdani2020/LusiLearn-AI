@@ -96,6 +96,10 @@ export const endpoints = {
     search: '/api/v1/content/search',
     recommendations: (userId: string) => `/api/v1/users/${userId}/recommendations`,
     item: (contentId: string) => `/api/v1/content/${contentId}`,
+    bookmark: (userId: string, contentId: string) => `/api/v1/users/${userId}/bookmarks/${contentId}`,
+    bookmarks: (userId: string) => `/api/v1/users/${userId}/bookmarks`,
+    interaction: (userId: string) => `/api/v1/users/${userId}/interactions`,
+    rate: (contentId: string) => `/api/v1/content/${contentId}/rate`,
   },
   
   // Collaboration endpoints
