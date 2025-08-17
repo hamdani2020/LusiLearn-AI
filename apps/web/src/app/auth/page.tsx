@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Loader2 } from 'lucide-react'
 
@@ -16,6 +17,8 @@ const AuthWrapper = dynamic(
 )
 
 export default function AuthPage() {
+  const searchParams = useSearchParams()
+  const mode = searchParams.get('mode') || 'login'
   const handleLogin = async (data: { email: string; password: string }) => {
     try {
       const { api } = await import('@/lib/api')
@@ -116,6 +119,7 @@ export default function AuthPage() {
 
   return (
     <AuthWrapper
+      mode={mode as 'login' | 'register'}
       onLogin={handleLogin}
       onRegister={handleRegister}
     />

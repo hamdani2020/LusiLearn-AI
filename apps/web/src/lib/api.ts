@@ -88,9 +88,38 @@ async function apiRequest<T>(
     const data = await response.json()
 
     if (!response.ok) {
-      // Handle 401 Unauthorized - token might be expired
-      if (response.status === 401) {
-        if (typeof window !== 'undefined') {
+      // Handle 401 Unauthorized - try to refresh token
+      if (response.status === 401 && typeof window !== 'undefined') {
+        const refreshToken = localStorage.getItem('refreshToken')
+        
+        if (refreshToken) {
+          try {
+            // Try to refresh the token
+            const refreshResponse = await api.refreshToken()
+            if (refreshResponse.success && refreshResponse.data) {
+              // Retry the original request with new token
+              const newToken = refreshResponse.data.accessToken
+              config.headers = {
+                ...config.headers,
+                Authorization: `Bearer ${newToken}`,
+              }
+              
+              const retryResponse = await fetch(url, config)
+              const retryData = await retryResponse.json()
+              
+              if (retryResponse.ok) {
+                return retryData
+              }
+            }
+          } catch (refreshError) {
+            // Refresh failed, clear tokens and redirect to login
+            localStorage.removeItem('accessToken')
+            localStorage.removeItem('refreshToken')
+            window.location.href = '/auth'
+            throw new ApiError('Authentication failed', 401, data)
+          }
+        } else {
+          // No refresh token, redirect to login
           localStorage.removeItem('accessToken')
           localStorage.removeItem('refreshToken')
           window.location.href = '/auth'
@@ -155,6 +184,27 @@ export const api = {
       if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', response.data.tokens.accessToken)
         localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+      }
+    }
+
+    return response
+  },
+
+  async refreshToken(): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
+    const refreshToken = localStorage.getItem('refreshToken')
+    if (!refreshToken) {
+      throw new ApiError('No refresh token available', 401)
+    }
+
+    const response = await apiRequest<{ accessToken: string; refreshToken: string }>('/api/v1/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (response.success && response.data) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.data.accessToken)
+        localStorage.setItem('refreshToken', response.data.refreshToken)
       }
     }
 

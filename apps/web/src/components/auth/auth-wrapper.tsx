@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LoginForm } from './login-form'
 import { RegistrationForm } from './registration-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,13 +10,19 @@ import { Shield, Users, BookOpen, Zap } from 'lucide-react'
 type AuthMode = 'login' | 'register'
 
 interface AuthWrapperProps {
+  mode?: 'login' | 'register'
   onLogin: (data: { email: string; password: string }) => Promise<void>
   onRegister: (data: any) => Promise<void>
   isLoading?: boolean
 }
 
-export function AuthWrapper({ onLogin, onRegister, isLoading = false }: AuthWrapperProps) {
-  const [mode, setMode] = useState<AuthMode>('login')
+export function AuthWrapper({ mode: initialMode = 'login', onLogin, onRegister, isLoading = false }: AuthWrapperProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode)
+
+  // Update mode when prop changes
+  useEffect(() => {
+    setMode(initialMode)
+  }, [initialMode])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 px-4">

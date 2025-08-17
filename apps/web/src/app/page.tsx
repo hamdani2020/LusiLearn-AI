@@ -1,11 +1,16 @@
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BookOpen, Users, Brain, Target } from 'lucide-react'
+import { PublicNav } from '@/components/navigation/public-nav'
+import { Footer } from '@/components/navigation/footer'
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <>
+      <PublicNav />
+      <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
       <section className="text-center py-12">
         <h1 className="text-4xl font-bold tracking-tight lg:text-6xl mb-6">
@@ -16,13 +21,17 @@ export default function HomePage() {
           Learn at your own pace with intelligent content recommendations and peer collaboration.
         </p>
         <div className="flex gap-4 justify-center">
-          <Button size="lg">Get Started</Button>
-          <Button variant="outline" size="lg">Learn More</Button>
+          <Button size="lg" asChild>
+            <Link href="/auth/register">Get Started</Link>
+          </Button>
+          <Button variant="outline" size="lg" asChild>
+            <Link href="#features">Learn More</Link>
+          </Button>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-12">
+      <section id="features" className="py-12">
         <h2 className="text-3xl font-bold text-center mb-12">
           Intelligent Learning Features
         </h2>
@@ -70,7 +79,7 @@ export default function HomePage() {
       </section>
 
       {/* Education Levels Section */}
-      <section className="py-12">
+      <section id="education-levels" className="py-12">
         <h2 className="text-3xl font-bold text-center mb-12">
           Learning for Every Level
         </h2>
@@ -127,6 +136,10 @@ export default function HomePage() {
           </Card>
         </div>
       </section>
+
     </div>
+    
+    <Footer />
+    </>
   )
 }

@@ -61,7 +61,7 @@ export const generateTokens = (userId: string, email: string, role?: string) => 
   const payload = { userId, email, role };
   
   const accessToken = jwt.sign(payload, JWT_SECRET, {
-    expiresIn: '15m' // Short-lived access token
+    expiresIn: '24h' // Extended for development, change to '15m' in production
   });
   
   const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, {
