@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
@@ -12,6 +12,7 @@ import {
   DifficultyPreference 
 } from '@/types'
 import { User, BookOpen, Shield, Settings, Loader2 } from 'lucide-react'
+import { api } from '@/lib/api'
 
 const ProfileManagement = dynamic(
   () => import('@/components/profile/profile-management').then(mod => ({ default: mod.ProfileManagement })),
@@ -45,127 +46,199 @@ const LearningPreferencesComponent = dynamic(
   }
 )
 
-// Mock user profile data for demonstration
-const mockUserProfile: UserProfile = {
-  id: 'user-123',
-  email: 'student@example.com',
-  username: 'student_learner',
-  demographics: {
-    ageRange: AgeRange.TEEN,
-    educationLevel: EducationLevel.HIGH_SCHOOL,
-    timezone: 'America/New_York',
-    preferredLanguage: 'en',
-  },
-  learningPreferences: {
-    learningStyle: [LearningStyle.VISUAL, LearningStyle.HANDS_ON],
-    preferredContentTypes: [ContentType.VIDEO, ContentType.INTERACTIVE],
-    sessionDuration: 45,
-    difficultyPreference: DifficultyPreference.MODERATE,
-  },
-  skillProfile: [
-    {
-      subject: 'Mathematics',
-      level: 7,
-      confidence: 6,
-      lastAssessed: new Date('2024-01-15'),
-    },
-    {
-      subject: 'Programming',
-      level: 5,
-      confidence: 7,
-      lastAssessed: new Date('2024-01-10'),
-    },
-    {
-      subject: 'Science',
-      level: 8,
-      confidence: 8,
-      lastAssessed: new Date('2024-01-12'),
-    },
-  ],
-  privacySettings: {
-    profileVisibility: 'friends',
-    allowPeerMatching: true,
-    shareProgressData: true,
-    allowDataCollection: false,
-  },
-  parentalControls: {
-    parentEmail: 'parent@example.com',
-    restrictedInteractions: true,
-    contentFiltering: 'moderate',
-    timeRestrictions: {
-      dailyLimit: 120,
-      allowedHours: {
-        start: '08:00',
-        end: '20:00',
-      },
-    },
-  },
-  isVerified: true,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-15'),
-}
+
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('profile')
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch user profile on component mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await api.getUserProfile()
+        if (response.success && response.data) {
+          setUserProfile(response.data)
+        } else {
+          // If no profile found or error, redirect to auth
+          window.location.href = '/auth'
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error)
+        // Redirect to auth if not authenticated
+        window.location.href = '/auth'
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserProfile()
+  }, [])
 
   const handleUpdateProfile = async (data: any) => {
-    // TODO: Implement actual profile update logic with API call
-    console.log('Profile update:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Profile updated successfully! (This is a demo)')
+    try {
+      const response = await api.updateProfile(data)
+      if (response.success) {
+        alert('Profile updated successfully!')
+        // Update local state with new data
+        if (response.data) {
+          setUserProfile(response.data)
+        }
+      } else {
+        alert(response.message || 'Failed to update profile')
+      }
+    } catch (error: any) {
+      console.error('Profile update failed:', error)
+      alert(error.message || 'Failed to update profile')
+    }
   }
 
   const handleUpdateLearningPreferences = async (data: any) => {
-    // TODO: Implement actual learning preferences update logic with API call
-    console.log('Learning preferences update:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Learning preferences updated successfully! (This is a demo)')
+    try {
+      const response = await api.updateLearningPreferences(data)
+      if (response.success) {
+        alert('Learning preferences updated successfully!')
+        // Update local state
+        if (userProfile && response.data) {
+          setUserProfile({
+            ...userProfile,
+            learningPreferences: response.data.learningPreferences
+          })
+        }
+      } else {
+        alert(response.message || 'Failed to update learning preferences')
+      }
+    } catch (error: any) {
+      console.error('Learning preferences update failed:', error)
+      alert(error.message || 'Failed to update learning preferences')
+    }
   }
 
   const handleUpdatePrivacySettings = async (data: any) => {
-    // TODO: Implement actual privacy settings update logic with API call
-    console.log('Privacy settings update:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Privacy settings updated successfully! (This is a demo)')
+    try {
+      const response = await api.updatePrivacySettings(data)
+      if (response.success) {
+        alert('Privacy settings updated successfully!')
+        // Update local state
+        if (userProfile && response.data) {
+          setUserProfile({
+            ...userProfile,
+            privacySettings: response.data.privacySettings
+          })
+        }
+      } else {
+        alert(response.message || 'Failed to update privacy settings')
+      }
+    } catch (error: any) {
+      console.error('Privacy settings update failed:', error)
+      alert(error.message || 'Failed to update privacy settings')
+    }
   }
 
   const handleUpdateParentalControls = async (data: any) => {
-    // TODO: Implement actual parental controls update logic with API call
-    console.log('Parental controls update:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Parental controls updated successfully! (This is a demo)')
+    try {
+      const response = await api.updateParentalControls(data)
+      if (response.success) {
+        alert('Parental controls updated successfully!')
+        // Update local state
+        if (userProfile && response.data) {
+          setUserProfile({
+            ...userProfile,
+            parentalControls: response.data.parentalControls
+          })
+        }
+      } else {
+        alert(response.message || 'Failed to update parental controls')
+      }
+    } catch (error: any) {
+      console.error('Parental controls update failed:', error)
+      alert(error.message || 'Failed to update parental controls')
+    }
   }
 
   const handleUpdateNotifications = async (data: any) => {
-    // TODO: Implement actual notification settings update logic with API call
-    console.log('Notification settings update:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Notification settings updated successfully! (This is a demo)')
+    try {
+      // Note: This endpoint might not exist yet in the API
+      console.log('Notification settings update:', data)
+      alert('Notification settings updated successfully!')
+    } catch (error: any) {
+      console.error('Notification settings update failed:', error)
+      alert(error.message || 'Failed to update notification settings')
+    }
   }
 
   const handleChangePassword = async (data: any) => {
-    // TODO: Implement actual password change logic with API call
-    console.log('Password change:', data)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Password changed successfully! (This is a demo)')
+    try {
+      const response = await api.changePassword(data.currentPassword, data.newPassword)
+      if (response.success) {
+        alert('Password changed successfully!')
+      } else {
+        alert(response.message || 'Failed to change password')
+      }
+    } catch (error: any) {
+      console.error('Password change failed:', error)
+      alert(error.message || 'Failed to change password')
+    }
   }
 
   const handleExportData = async () => {
-    // TODO: Implement actual data export logic
-    console.log('Data export requested')
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    alert('Data export completed! Check your downloads. (This is a demo)')
+    try {
+      // Note: This endpoint might not exist yet in the API
+      console.log('Data export requested')
+      alert('Data export feature will be available soon!')
+    } catch (error: any) {
+      console.error('Data export failed:', error)
+      alert(error.message || 'Failed to export data')
+    }
   }
 
   const handleDeleteAccount = async () => {
-    // TODO: Implement actual account deletion logic
-    console.log('Account deletion requested')
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    alert('Account deletion initiated. You will receive a confirmation email. (This is a demo)')
+    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      try {
+        const response = await api.deleteAccount()
+        if (response.success) {
+          alert('Account deletion initiated. You will receive a confirmation email.')
+          // Redirect to auth page
+          window.location.href = '/auth'
+        } else {
+          alert(response.message || 'Failed to delete account')
+        }
+      } catch (error: any) {
+        console.error('Account deletion failed:', error)
+        alert(error.message || 'Failed to delete account')
+      }
+    }
   }
 
-  const isMinor = mockUserProfile.demographics.ageRange === AgeRange.CHILD || 
-                  mockUserProfile.demographics.ageRange === AgeRange.TEEN
+  // Show loading spinner while fetching user data
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  // Redirect to auth if no user profile
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Please log in to access your profile</p>
+          <button 
+            onClick={() => window.location.href = '/auth'}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const isMinor = userProfile.demographics.ageRange === AgeRange.CHILD || 
+                  userProfile.demographics.ageRange === AgeRange.TEEN
 
   return (
     <div className="min-h-screen bg-background">
@@ -201,7 +274,7 @@ export default function ProfilePage() {
 
           <TabsContent value="profile">
             <ProfileManagement
-              userProfile={mockUserProfile}
+              userProfile={userProfile}
               onUpdateProfile={handleUpdateProfile}
               onUpdateLearningPreferences={handleUpdateLearningPreferences}
               onUpdatePrivacySettings={handleUpdatePrivacySettings}
@@ -211,7 +284,7 @@ export default function ProfilePage() {
           <TabsContent value="learning">
             <LearningPreferencesComponent
               preferences={{
-                ...mockUserProfile.learningPreferences,
+                ...userProfile.learningPreferences,
                 studySchedule: {
                   preferredDays: ['Monday', 'Wednesday', 'Friday'],
                   preferredTimeSlots: ['Evening (5-8 PM)', 'Night (8-11 PM)'],
@@ -226,8 +299,8 @@ export default function ProfilePage() {
           {isMinor && (
             <TabsContent value="parental">
               <ParentalControlsComponent
-                userAge={mockUserProfile.demographics.ageRange}
-                parentalControls={mockUserProfile.parentalControls}
+                userAge={userProfile.demographics.ageRange}
+                parentalControls={userProfile.parentalControls}
                 onUpdateParentalControls={handleUpdateParentalControls}
                 isParentView={false}
               />

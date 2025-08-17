@@ -1,4 +1,51 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+export interface ApiResponse<T> {
+  success: boolean
+  message?: string
+  data?: T
+  error?: string
+}
+
+export interface AuthTokens {
+  accessToken: string
+  refreshToken: string
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface RegisterRequest {
+  email: string
+  password: string
+  username: string
+  demographics: {
+    ageRange: string
+    educationLevel: string
+    timezone: string
+    preferredLanguage: string
+  }
+  learningPreferences: {
+    learningStyle: string[]
+    preferredContentTypes: string[]
+    sessionDuration: number
+    difficultyPreference: string
+  }
+  parentalControls?: {
+    parentEmail: string
+    restrictedInteractions: boolean
+    contentFiltering: string
+    timeRestrictions: {
+      dailyLimit: number
+      allowedHours: {
+        start: string
+        end: string
+      }
+    }
+  }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -14,9 +61,9 @@ export class ApiError extends Error {
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`
-  
+
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -27,7 +74,7 @@ async function apiRequest<T>(
 
   // Add auth token if available
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem('accessToken')
     if (token) {
       config.headers = {
         ...config.headers,
@@ -38,17 +85,25 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config)
-    
+    const data = await response.json()
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+      // Handle 401 Unauthorized - token might be expired
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          window.location.href = '/auth'
+        }
+      }
+
       throw new ApiError(
-        errorData.message || `HTTP ${response.status}`,
+        data.message || `HTTP ${response.status}`,
         response.status,
-        errorData
+        data
       )
     }
 
-    const data = await response.json()
     return data
   } catch (error) {
     if (error instanceof ApiError) {
@@ -72,6 +127,101 @@ export const api = {
     }),
   delete: <T>(endpoint: string) =>
     apiRequest<T>(endpoint, { method: 'DELETE' }),
+
+  // Authentication methods
+  async login(credentials: LoginRequest): Promise<ApiResponse<{ user: any; tokens: AuthTokens }>> {
+    const response = await apiRequest<{ user: any; tokens: AuthTokens }>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    })
+
+    if (response.success && response.data?.tokens) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.data.tokens.accessToken)
+        localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+      }
+    }
+
+    return response
+  },
+
+  async register(userData: RegisterRequest): Promise<ApiResponse<{ user: any; tokens: AuthTokens }>> {
+    const response = await apiRequest<{ user: any; tokens: AuthTokens }>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    })
+
+    if (response.success && response.data?.tokens) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.data.tokens.accessToken)
+        localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+      }
+    }
+
+    return response
+  },
+
+  async logout(): Promise<ApiResponse<void>> {
+    const response = await apiRequest<void>('/api/v1/auth/logout', {
+      method: 'POST',
+    })
+
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+    }
+
+    return response
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return apiRequest<void>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      }),
+    })
+  },
+
+  // User profile methods
+  async getUserProfile(): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/users/profile')
+  },
+
+  async updateProfile(profileData: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/users/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    })
+  },
+
+  async updateLearningPreferences(preferences: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/users/learning-preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    })
+  },
+
+  async updatePrivacySettings(settings: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/users/privacy-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    })
+  },
+
+  async updateParentalControls(controls: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/users/parental-controls', {
+      method: 'PUT',
+      body: JSON.stringify(controls),
+    })
+  },
+
+  async deleteAccount(): Promise<ApiResponse<void>> {
+    return apiRequest<void>('/api/v1/users/account', {
+      method: 'DELETE',
+    })
+  },
 }
 
 // API endpoints
@@ -82,7 +232,7 @@ export const endpoints = {
     preferences: (userId: string) => `/api/v1/users/${userId}/preferences`,
     assessment: (userId: string) => `/api/v1/users/${userId}/assessment`,
   },
-  
+
   // Learning path endpoints
   learningPaths: {
     list: (userId: string) => `/api/v1/users/${userId}/learning-paths`,
@@ -90,7 +240,7 @@ export const endpoints = {
     get: (pathId: string) => `/api/v1/learning-paths/${pathId}`,
     progress: (pathId: string) => `/api/v1/learning-paths/${pathId}/progress`,
   },
-  
+
   // Content endpoints
   content: {
     search: '/api/v1/content/search',
@@ -101,14 +251,14 @@ export const endpoints = {
     interaction: (userId: string) => `/api/v1/users/${userId}/interactions`,
     rate: (contentId: string) => `/api/v1/content/${contentId}/rate`,
   },
-  
+
   // Collaboration endpoints
   collaboration: {
     peers: (userId: string) => `/api/v1/users/${userId}/peer-matches`,
     groups: '/api/v1/study-groups',
     group: (groupId: string) => `/api/v1/study-groups/${groupId}`,
   },
-  
+
   // Health check
   health: '/api/health',
 }

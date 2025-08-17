@@ -62,7 +62,7 @@ export class UserService {
       }
 
       // Validate parental controls
-      if (updates.parentalControls !== undefined) {
+      if (updates.parentalControls !== undefined || updates.hasOwnProperty('parentalControls')) {
         await this.validateParentalControlsUpdate(currentUser, updates.parentalControls);
       }
 

@@ -167,6 +167,7 @@ describe('UserService', () => {
         parentalControls: undefined
       };
 
+      // The service should validate before calling update, so we don't mock update
       // Act & Assert
       await expect(userService.updateProfile(userId, updates)).rejects.toThrow(ValidationError);
       expect(mockUserRepository.update).not.toHaveBeenCalled();

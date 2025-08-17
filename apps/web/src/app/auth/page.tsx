@@ -17,53 +17,100 @@ const AuthWrapper = dynamic(
 
 export default function AuthPage() {
   const handleLogin = async (data: { email: string; password: string }) => {
-    // TODO: Implement actual login logic with API call
-    console.log('Login attempt:', data)
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const { api } = await import('@/lib/api')
+      const response = await api.login(data)
       
-      // In a real implementation, this would:
-      // 1. Call the authentication API endpoint
-      // 2. Store the JWT token in secure storage
-      // 3. Redirect to the dashboard
-      // 4. Update global auth state
-      
-      alert('Login successful! (This is a demo)')
-      // window.location.href = '/dashboard'
-    } catch (error) {
+      if (response.success) {
+        console.log('Debug - Login successful:', response.data)
+        
+        // Check if tokens were stored
+        const accessToken = localStorage.getItem('accessToken')
+        const refreshToken = localStorage.getItem('refreshToken')
+        console.log('Debug - Tokens stored:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken 
+        })
+        
+        alert('Login successful!')
+        // Redirect to dashboard
+        window.location.href = '/profile'
+      } else {
+        console.log('Debug - Login failed:', response)
+        alert(response.message || 'Login failed')
+      }
+    } catch (error: any) {
       console.error('Login failed:', error)
-      alert('Login failed. Please check your credentials.')
+      alert(error.message || 'Login failed. Please check your credentials.')
     }
   }
 
   const handleRegister = async (data: any) => {
-    // TODO: Implement actual registration logic with API call
-    console.log('Registration attempt:', data)
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const { api } = await import('@/lib/api')
       
-      // In a real implementation, this would:
-      // 1. Call the registration API endpoint
-      // 2. Handle email verification if required
-      // 3. For minors, send parent notification email
-      // 4. Create user profile and initial assessment
-      // 5. Redirect to onboarding flow
-      
-      alert('Registration successful! (This is a demo)')
-      
-      // Handle minor account creation
-      if (data.parentEmail) {
-        console.log('Parent notification email would be sent to:', data.parentEmail)
+      // Transform form data to match API schema
+      const registerData = {
+        email: data.email,
+        password: data.password,
+        username: data.username,
+        demographics: {
+          ageRange: data.ageRange,
+          educationLevel: data.educationLevel,
+          timezone: data.timezone,
+          preferredLanguage: data.preferredLanguage,
+        },
+        learningPreferences: {
+          learningStyle: ['visual'], // Default values, can be updated later
+          preferredContentTypes: ['video'],
+          sessionDuration: 45,
+          difficultyPreference: 'moderate',
+        },
+        ...(data.parentEmail && {
+          parentalControls: {
+            parentEmail: data.parentEmail,
+            restrictedInteractions: true,
+            contentFiltering: 'strict',
+            timeRestrictions: {
+              dailyLimit: 120,
+              allowedHours: {
+                start: '08:00',
+                end: '20:00',
+              },
+            },
+          },
+        }),
       }
       
-      // window.location.href = '/onboarding'
-    } catch (error) {
+      const response = await api.register(registerData)
+      
+      if (response.success) {
+        console.log('Debug - Registration successful:', response.data)
+        
+        // Check if tokens were stored
+        const accessToken = localStorage.getItem('accessToken')
+        const refreshToken = localStorage.getItem('refreshToken')
+        console.log('Debug - Tokens stored:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken 
+        })
+        
+        alert('Registration successful!')
+        
+        // Handle minor account creation
+        if (data.parentEmail) {
+          console.log('Parent notification email sent to:', data.parentEmail)
+        }
+        
+        // Redirect to dashboard or onboarding
+        window.location.href = '/dashboard'
+      } else {
+        console.log('Debug - Registration failed:', response)
+        alert(response.message || 'Registration failed')
+      }
+    } catch (error: any) {
       console.error('Registration failed:', error)
-      alert('Registration failed. Please try again.')
+      alert(error.message || 'Registration failed. Please try again.')
     }
   }
 
