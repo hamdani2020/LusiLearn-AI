@@ -37,7 +37,7 @@ export default function AuthPage() {
         
         alert('Login successful!')
         // Redirect to dashboard
-        window.location.href = '/profile'
+        window.location.href = '/dashboard'
       } else {
         console.log('Debug - Login failed:', response)
         alert(response.message || 'Login failed')
