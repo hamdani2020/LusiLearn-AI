@@ -107,7 +107,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: false,
     rateLimit: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 5, // Very restrictive for auth endpoints to prevent brute force
+      max: process.env.NODE_ENV === 'production' ? 20 : 100, // 100 in dev, 20 in production
       skipSuccessfulRequests: false,
       skipFailedRequests: false,
     }

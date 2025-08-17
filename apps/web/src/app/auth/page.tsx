@@ -26,6 +26,13 @@ export default function AuthPage() {
       
       if (response.success) {
         console.log('Debug - Login successful:', response.data)
+        console.log('Debug - Response structure:', {
+          hasData: !!response.data,
+          dataKeys: response.data ? Object.keys(response.data) : [],
+          hasAccessToken: response.data?.accessToken ? true : false,
+          hasRefreshToken: response.data?.refreshToken ? true : false,
+          hasUser: response.data?.user ? true : false
+        })
         
         // Check if tokens were stored
         const accessToken = localStorage.getItem('accessToken')
@@ -35,9 +42,11 @@ export default function AuthPage() {
           hasRefreshToken: !!refreshToken 
         })
         
-        alert('Login successful!')
-        // Redirect to dashboard
-        window.location.href = '/dashboard'
+        // Add a longer delay to ensure tokens are properly stored and propagated
+        setTimeout(() => {
+          console.log('Debug - Redirecting to profile page...')
+          window.location.href = '/dashboard'
+        }, 500)
       } else {
         console.log('Debug - Login failed:', response)
         alert(response.message || 'Login failed')
@@ -98,15 +107,16 @@ export default function AuthPage() {
           hasRefreshToken: !!refreshToken 
         })
         
-        alert('Registration successful!')
-        
         // Handle minor account creation
         if (data.parentEmail) {
           console.log('Parent notification email sent to:', data.parentEmail)
         }
         
-        // Redirect to dashboard or onboarding
-        window.location.href = '/dashboard'
+        // Add a small delay to ensure tokens are stored before redirect
+        setTimeout(() => {
+          console.log('Debug - Redirecting to dashboard...')
+          window.location.href = '/dashboard'
+        }, 200)
       } else {
         console.log('Debug - Registration failed:', response)
         alert(response.message || 'Registration failed')

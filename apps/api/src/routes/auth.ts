@@ -10,10 +10,10 @@ import { AgeRange, EducationLevel, LearningStyle, ContentType, DifficultyPrefere
 const router = express.Router();
 const authService = new AuthService();
 
-// Rate limiting for authentication endpoints
+// Rate limiting for authentication endpoints - more lenient in development
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs for auth endpoints
+  max: process.env.NODE_ENV === 'production' ? 20 : 100, // 100 in dev, 20 in production
   message: {
     error: 'Too Many Requests',
     message: 'Too many authentication attempts, please try again later.',
@@ -25,7 +25,7 @@ const authLimiter = rateLimit({
 
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // limit each IP to 3 password reset requests per hour
+  max: process.env.NODE_ENV === 'production' ? 3 : 10, // 10 in dev, 3 in production
   message: {
     error: 'Too Many Requests',
     message: 'Too many password reset attempts, please try again later.',

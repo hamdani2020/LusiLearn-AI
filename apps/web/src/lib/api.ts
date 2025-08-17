@@ -7,10 +7,7 @@ export interface ApiResponse<T> {
   error?: string
 }
 
-export interface AuthTokens {
-  accessToken: string
-  refreshToken: string
-}
+
 
 export interface LoginRequest {
   email: string
@@ -76,10 +73,18 @@ async function apiRequest<T>(
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken')
     if (token) {
+      console.log('Debug - Adding token to request:', { 
+        endpoint, 
+        hasToken: !!token, 
+        tokenLength: token.length,
+        tokenStart: token.substring(0, 20) + '...'
+      })
       config.headers = {
         ...config.headers,
         Authorization: `Bearer ${token}`,
       }
+    } else {
+      console.log('Debug - No token found for request:', endpoint)
     }
   }
 
@@ -94,11 +99,22 @@ async function apiRequest<T>(
         
         if (refreshToken) {
           try {
-            // Try to refresh the token
-            const refreshResponse = await api.refreshToken()
-            if (refreshResponse.success && refreshResponse.data) {
+            // Try to refresh the token using direct fetch to avoid circular dependency
+            const refreshResponse = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            })
+            
+            const refreshData = await refreshResponse.json()
+            
+            if (refreshResponse.ok && refreshData.success && refreshData.data) {
+              // Store new tokens
+              localStorage.setItem('accessToken', refreshData.data.accessToken)
+              localStorage.setItem('refreshToken', refreshData.data.refreshToken)
+              
               // Retry the original request with new token
-              const newToken = refreshResponse.data.accessToken
+              const newToken = refreshData.data.accessToken
               config.headers = {
                 ...config.headers,
                 Authorization: `Bearer ${newToken}`,
@@ -112,17 +128,28 @@ async function apiRequest<T>(
               }
             }
           } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError)
             // Refresh failed, clear tokens and redirect to login
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
-            window.location.href = '/auth'
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('accessToken')
+              localStorage.removeItem('refreshToken')
+              // Use setTimeout to avoid blocking the current execution
+              setTimeout(() => {
+                window.location.href = '/auth'
+              }, 0)
+            }
             throw new ApiError('Authentication failed', 401, data)
           }
         } else {
           // No refresh token, redirect to login
+        if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken')
           localStorage.removeItem('refreshToken')
+            // Use setTimeout to avoid blocking the current execution
+            setTimeout(() => {
           window.location.href = '/auth'
+            }, 0)
+          }
         }
       }
 
@@ -138,6 +165,7 @@ async function apiRequest<T>(
     if (error instanceof ApiError) {
       throw error
     }
+    console.error('API request failed:', error)
     throw new ApiError('Network error', 0, error)
   }
 }
@@ -158,32 +186,32 @@ export const api = {
     apiRequest<T>(endpoint, { method: 'DELETE' }),
 
   // Authentication methods
-  async login(credentials: LoginRequest): Promise<ApiResponse<{ user: any; tokens: AuthTokens }>> {
-    const response = await apiRequest<{ user: any; tokens: AuthTokens }>('/api/v1/auth/login', {
+  async login(credentials: LoginRequest): Promise<ApiResponse<{ user: any; accessToken: string; refreshToken: string }>> {
+    const response = await apiRequest<{ user: any; accessToken: string; refreshToken: string }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     })
 
-    if (response.success && response.data?.tokens) {
+    if (response.success && response.data?.accessToken && response.data?.refreshToken) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', response.data.tokens.accessToken)
-        localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+        localStorage.setItem('accessToken', response.data.accessToken)
+        localStorage.setItem('refreshToken', response.data.refreshToken)
       }
     }
 
     return response
   },
 
-  async register(userData: RegisterRequest): Promise<ApiResponse<{ user: any; tokens: AuthTokens }>> {
-    const response = await apiRequest<{ user: any; tokens: AuthTokens }>('/api/v1/auth/register', {
+  async register(userData: RegisterRequest): Promise<ApiResponse<{ user: any; accessToken: string; refreshToken: string }>> {
+    const response = await apiRequest<{ user: any; accessToken: string; refreshToken: string }>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     })
 
-    if (response.success && response.data?.tokens) {
+    if (response.success && response.data?.accessToken && response.data?.refreshToken) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', response.data.tokens.accessToken)
-        localStorage.setItem('refreshToken', response.data.tokens.refreshToken)
+        localStorage.setItem('accessToken', response.data.accessToken)
+        localStorage.setItem('refreshToken', response.data.refreshToken)
       }
     }
 

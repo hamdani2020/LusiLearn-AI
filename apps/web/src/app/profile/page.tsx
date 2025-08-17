@@ -55,25 +55,61 @@ export default function ProfilePage() {
 
   // Fetch user profile on component mount
   useEffect(() => {
+    let isMounted = true; // Prevent memory leaks from async operations
+
     const fetchUserProfile = async () => {
       try {
+        // Add a longer delay to ensure tokens are properly stored and propagated
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        // Check if component is still mounted
+        if (!isMounted) return;
+
+        // Check if we have a token before making the request
+        const token = localStorage.getItem('accessToken')
+        if (!token) {
+          console.log('No access token found, redirecting to auth')
+          if (isMounted) window.location.href = '/auth'
+          return
+        }
+
+        console.log('Debug - Fetching user profile with token:', { 
+          hasToken: !!token, 
+          tokenLength: token.length,
+          tokenStart: token.substring(0, 20) + '...',
+          tokenValue: token.substring(0, 50) + '...'
+        })
+
+        console.log('Debug - About to call getUserProfile API')
         const response = await api.getUserProfile()
+        console.log('Debug - getUserProfile API response:', response)
+        
+        // Check if component is still mounted before updating state
+        if (!isMounted) return;
+        
         if (response.success && response.data) {
+          console.log('Debug - Profile fetch successful, setting user profile')
           setUserProfile(response.data)
         } else {
           // If no profile found or error, redirect to auth
-          window.location.href = '/auth'
+          console.log('Profile fetch failed:', response)
+          if (isMounted) window.location.href = '/auth'
         }
       } catch (error) {
         console.error('Failed to fetch user profile:', error)
         // Redirect to auth if not authenticated
-        window.location.href = '/auth'
+        if (isMounted) window.location.href = '/auth'
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchUserProfile()
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      isMounted = false;
+    }
   }, [])
 
   const handleUpdateProfile = async (data: any) => {
