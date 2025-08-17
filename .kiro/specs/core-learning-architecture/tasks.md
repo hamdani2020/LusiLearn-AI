@@ -188,14 +188,14 @@
     - Add goal setting and milestone tracking UI
     - _Requirements: 2.1, 2.2, 5.1, 5.2, 5.3, 5.4, 5.6_
 
-  - [ ] 9.4 Implement content discovery and consumption interface
+  - [x] 9.4 Implement content discovery and consumption interface
     - Create content search and filtering interface
     - Build content recommendation display with rating system
     - Implement content consumption tracking and interaction
     - Add content bookmarking and personal library features
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-  - [ ] 9.5 Build collaboration and peer interaction UI
+  - [x] 9.5 Build collaboration and peer interaction UI
     - Create peer matching and discovery interface
     - Implement study group creation and management UI
     - Add real-time collaboration tools and chat interface
