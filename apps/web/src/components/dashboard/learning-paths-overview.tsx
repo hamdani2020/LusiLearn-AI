@@ -15,47 +15,7 @@ interface LearningPathsOverviewProps {
 export function LearningPathsOverview({ userId }: LearningPathsOverviewProps) {
   const { data: learningPathsData, isLoading, error } = useLearningPaths(userId)
 
-  // Mock data for demonstration
-  const mockPaths = [
-    {
-      id: "path-1",
-      subject: "JavaScript Fundamentals",
-      currentLevel: "intermediate",
-      progress: { overallProgress: 75, currentMilestone: "Functions & Scope" },
-      objectives: [
-        { id: "1", title: "Variables & Data Types", completed: true },
-        { id: "2", title: "Functions & Scope", completed: false },
-        { id: "3", title: "Objects & Arrays", completed: false }
-      ],
-      estimatedTimeLeft: "2 hours"
-    },
-    {
-      id: "path-2", 
-      subject: "React Development",
-      currentLevel: "beginner",
-      progress: { overallProgress: 30, currentMilestone: "Components Basics" },
-      objectives: [
-        { id: "1", title: "JSX Syntax", completed: true },
-        { id: "2", title: "Components Basics", completed: false },
-        { id: "3", title: "Props & State", completed: false }
-      ],
-      estimatedTimeLeft: "5 hours"
-    },
-    {
-      id: "path-3",
-      subject: "Data Structures",
-      currentLevel: "advanced", 
-      progress: { overallProgress: 45, currentMilestone: "Binary Trees" },
-      objectives: [
-        { id: "1", title: "Arrays & Linked Lists", completed: true },
-        { id: "2", title: "Stacks & Queues", completed: true },
-        { id: "3", title: "Binary Trees", completed: false }
-      ],
-      estimatedTimeLeft: "3 hours"
-    }
-  ]
-
-  const paths = learningPathsData?.data || mockPaths
+  const paths = learningPathsData?.data || []
 
   if (error) {
     return (

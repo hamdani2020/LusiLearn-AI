@@ -4,20 +4,35 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Calendar, Clock, Target, TrendingUp } from 'lucide-react'
+import { useProgressDashboard, useUserStreaks } from '@/hooks/use-progress-data'
+import { api } from '@/lib/api'
+import { useQuery } from '@tanstack/react-query'
 
 interface DashboardHeaderProps {
   userId: string
 }
 
 export function DashboardHeader({ userId }: DashboardHeaderProps) {
-  // Mock data - in real app this would come from API
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: () => api.getUserProfile(),
+  })
+
+  const { data: progressData } = useProgressDashboard()
+  const { data: streaksData } = useUserStreaks()
+
+  // Extract data with fallbacks
+  const user = userProfile?.data
+  const progress = progressData?.data
+  const streaks = streaksData?.data
+
   const userData = {
-    name: "Alex Johnson",
-    educationLevel: "High School",
-    currentStreak: 7,
-    totalLearningTime: 45, // hours this month
-    overallProgress: 68,
-    activeGoals: 3
+    name: user?.username || "User",
+    educationLevel: user?.demographics?.educationLevel || "Not specified",
+    currentStreak: streaks?.currentStreak || 0,
+    totalLearningTime: progress?.monthlyAnalytics?.totalHours || 0,
+    overallProgress: progress?.monthlyAnalytics?.averageProgress || 0,
+    activeGoals: progress?.monthlyAnalytics?.activeGoals || 0
   }
 
   return (

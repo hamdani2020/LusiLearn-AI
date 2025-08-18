@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Target, Plus, Calendar, CheckCircle, Circle, Trophy } from 'lucide-react'
+import { useLearningPaths } from '@/hooks/use-learning-data'
 
 interface GoalsAndMilestonesProps {
   userId: string
@@ -15,53 +16,26 @@ interface GoalsAndMilestonesProps {
 export function GoalsAndMilestones({ userId }: GoalsAndMilestonesProps) {
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [newGoal, setNewGoal] = useState('')
+  
+  const { data: learningPathsData } = useLearningPaths(userId)
 
-  // Mock goals data - in real app this would come from API
-  const goals = [
-    {
-      id: '1',
-      title: 'Complete JavaScript Fundamentals',
-      description: 'Master all core JavaScript concepts',
-      progress: 75,
-      targetDate: '2024-03-15',
-      status: 'in_progress',
-      milestones: [
-        { id: '1', title: 'Variables & Data Types', completed: true },
-        { id: '2', title: 'Functions & Scope', completed: true },
-        { id: '3', title: 'Objects & Arrays', completed: false },
-        { id: '4', title: 'Async Programming', completed: false }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Build First React App',
-      description: 'Create a complete React application',
-      progress: 30,
-      targetDate: '2024-04-01',
-      status: 'in_progress',
-      milestones: [
-        { id: '1', title: 'Setup Development Environment', completed: true },
-        { id: '2', title: 'Learn JSX Syntax', completed: true },
-        { id: '3', title: 'Component Architecture', completed: false },
-        { id: '4', title: 'State Management', completed: false },
-        { id: '5', title: 'Deploy Application', completed: false }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Data Structures Mastery',
-      description: 'Understand and implement key data structures',
-      progress: 60,
-      targetDate: '2024-03-30',
-      status: 'in_progress',
-      milestones: [
-        { id: '1', title: 'Arrays & Linked Lists', completed: true },
-        { id: '2', title: 'Stacks & Queues', completed: true },
-        { id: '3', title: 'Trees & Graphs', completed: false },
-        { id: '4', title: 'Hash Tables', completed: false }
-      ]
-    }
-  ]
+  // Convert learning paths to goals format
+  const goals = (learningPathsData?.data || []).map((path: any) => ({
+    id: path.id,
+    title: `Complete ${path.subject}`,
+    description: `Master all concepts in ${path.subject}`,
+    progress: path.progress?.overallProgress || 0,
+    targetDate: path.estimatedCompletion || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: path.progress?.overallProgress >= 100 ? 'completed' : 'in_progress',
+    milestones: path.objectives?.map((obj: any, index: number) => ({
+      id: obj.id || `milestone-${index}`,
+      title: obj.title,
+      completed: obj.completed || false
+    })) || []
+  }))
+
+  // Remove the mock goals array that was here before
+
 
   const completedGoals = goals.filter(goal => goal.status === 'completed').length
   const totalGoals = goals.length

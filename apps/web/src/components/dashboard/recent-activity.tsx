@@ -3,85 +3,62 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { 
-  Activity, 
-  BookOpen, 
-  Users, 
-  Award, 
+import {
+  Activity,
+  BookOpen,
+  Users,
+  Award,
   Clock,
   ExternalLink,
   Play
 } from 'lucide-react'
+import { useUserAchievements } from '@/hooks/use-progress-data'
 
 interface RecentActivityProps {
   userId: string
 }
 
 export function RecentActivity({ userId }: RecentActivityProps) {
-  // Mock activity data - in real app this would come from API
-  const activities = [
-    {
+  const { data: achievementsData } = useUserAchievements()
+
+  // Convert achievements to activity format
+  const activities = (achievementsData?.data || []).slice(0, 6).map((achievement: any) => ({
+    id: achievement.id,
+    type: 'achievement',
+    title: `Achievement Unlocked: "${achievement.title}"`,
+    description: achievement.description,
+    timestamp: formatTimeAgo(achievement.earnedAt),
+    points: achievement.points,
+    icon: Award,
+    color: 'text-yellow-600'
+  }))
+
+  // Add some default activities if no achievements
+  if (activities.length === 0) {
+    activities.push({
       id: '1',
-      type: 'lesson_completed',
-      title: 'Completed "JavaScript Functions"',
-      description: 'Mastered function declarations and expressions',
-      timestamp: '2 hours ago',
-      score: 95,
-      duration: '45 min',
+      type: 'welcome',
+      title: 'Welcome to LusiLearn AI!',
+      description: 'Start your learning journey by creating your first learning path',
+      timestamp: 'Just now',
       icon: BookOpen,
-      color: 'text-green-600'
-    },
-    {
-      id: '2',
-      type: 'milestone_achieved',
-      title: 'Milestone Unlocked: "Array Master"',
-      description: 'Completed all array manipulation exercises',
-      timestamp: '1 day ago',
-      icon: Award,
-      color: 'text-yellow-600'
-    },
-    {
-      id: '3',
-      type: 'peer_session',
-      title: 'Study Session with Sarah M.',
-      description: 'Collaborative problem solving on algorithms',
-      timestamp: '2 days ago',
-      duration: '90 min',
-      rating: 5,
-      icon: Users,
-      color: 'text-blue-600'
-    },
-    {
-      id: '4',
-      type: 'assessment_completed',
-      title: 'JavaScript Quiz Completed',
-      description: 'Intermediate level assessment',
-      timestamp: '3 days ago',
-      score: 87,
-      icon: Activity,
-      color: 'text-purple-600'
-    },
-    {
-      id: '5',
-      type: 'content_bookmarked',
-      title: 'Bookmarked "React Hooks Tutorial"',
-      description: 'Advanced React patterns video series',
-      timestamp: '4 days ago',
-      source: 'YouTube',
-      icon: BookOpen,
-      color: 'text-gray-600'
-    },
-    {
-      id: '6',
-      type: 'goal_progress',
-      title: 'Goal Progress Update',
-      description: 'JavaScript Fundamentals: 75% complete',
-      timestamp: '5 days ago',
-      progress: 75,
-      icon: Activity,
-      color: 'text-green-600'
-    }
-  ]
+      color: 'text-blue-600',
+      points: undefined
+    })
+  }
+
+  function formatTimeAgo(date: string | Date) {
+    const now = new Date()
+    const past = new Date(date)
+    const diffInHours = Math.floor((now.getTime() - past.getTime()) / (1000 * 60 * 60))
+
+    if (diffInHours < 1) return 'Just now'
+    if (diffInHours < 24) return `${diffInHours} hours ago`
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) return `${diffInDays} days ago`
+    return past.toLocaleDateString()
+  }
+
 
   return (
     <Card>
@@ -128,6 +105,7 @@ interface ActivityItemProps {
     rating?: number
     source?: string
     progress?: number
+    points?: number
     icon: any
     color: string
   }
@@ -136,6 +114,8 @@ interface ActivityItemProps {
 function ActivityItem({ activity }: ActivityItemProps) {
   const getActivityBadge = () => {
     switch (activity.type) {
+      case 'achievement':
+        return <Badge className="bg-yellow-100 text-yellow-800">Achievement</Badge>
       case 'lesson_completed':
         return <Badge variant="secondary">Lesson</Badge>
       case 'milestone_achieved':
@@ -148,6 +128,8 @@ function ActivityItem({ activity }: ActivityItemProps) {
         return <Badge variant="outline">Bookmarked</Badge>
       case 'goal_progress':
         return <Badge className="bg-green-100 text-green-800">Goal</Badge>
+      case 'welcome':
+        return <Badge className="bg-blue-100 text-blue-800">Welcome</Badge>
       default:
         return <Badge variant="secondary">Activity</Badge>
     }
@@ -158,7 +140,7 @@ function ActivityItem({ activity }: ActivityItemProps) {
       <div className={`p-2 rounded-full bg-muted ${activity.color}`}>
         <activity.icon className="h-4 w-4" />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between mb-1">
           <h4 className="font-medium text-sm leading-tight">{activity.title}</h4>
@@ -166,46 +148,52 @@ function ActivityItem({ activity }: ActivityItemProps) {
             {activity.timestamp}
           </span>
         </div>
-        
+
         <p className="text-sm text-muted-foreground mb-2">{activity.description}</p>
-        
+
         <div className="flex items-center space-x-2 text-xs">
           {getActivityBadge()}
-          
+
           {activity.score && (
             <Badge variant="outline" className="text-xs">
               Score: {activity.score}%
             </Badge>
           )}
-          
+
           {activity.duration && (
             <div className="flex items-center text-muted-foreground">
               <Clock className="h-3 w-3 mr-1" />
               {activity.duration}
             </div>
           )}
-          
+
           {activity.rating && (
             <div className="flex items-center text-muted-foreground">
               {'★'.repeat(activity.rating)}
             </div>
           )}
-          
+
           {activity.source && (
             <div className="flex items-center text-muted-foreground">
               <ExternalLink className="h-3 w-3 mr-1" />
               {activity.source}
             </div>
           )}
-          
+
           {activity.progress && (
             <Badge variant="outline" className="text-xs">
               {activity.progress}% complete
             </Badge>
           )}
+
+          {activity.points && (
+            <Badge variant="outline" className="text-xs">
+              +{activity.points} points
+            </Badge>
+          )}
         </div>
       </div>
-      
+
       {(activity.type === 'lesson_completed' || activity.type === 'content_bookmarked') && (
         <Button size="sm" variant="ghost" className="p-1 h-auto">
           <Play className="h-3 w-3" />

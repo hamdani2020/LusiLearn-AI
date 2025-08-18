@@ -42,7 +42,7 @@ export interface ContentRecommendation {
 export function useLearningPaths(userId: string) {
     return useQuery({
         queryKey: ['learningPaths', userId],
-        queryFn: () => api.get<{ data: LearningPath[] }>(endpoints.learningPaths.list(userId)),
+        queryFn: () => api.getLearningPaths(),
         enabled: !!userId,
         staleTime: 5 * 60 * 1000, // 5 minutes
     })
@@ -52,7 +52,7 @@ export function useLearningPaths(userId: string) {
 export function useLearningPath(pathId: string) {
     return useQuery({
         queryKey: ['learningPath', pathId],
-        queryFn: () => api.get<{ data: LearningPath }>(endpoints.learningPaths.get(pathId)),
+        queryFn: () => api.getLearningPath(pathId),
         enabled: !!pathId,
     })
 }
@@ -62,11 +62,10 @@ export function useCreateLearningPath() {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: ({ userId, data }: { userId: string; data: any }) =>
-            api.post<{ data: LearningPath }>(endpoints.learningPaths.create(userId), data),
-        onSuccess: (_data, { userId }) => {
+        mutationFn: (data: any) => api.createLearningPath(data),
+        onSuccess: () => {
             // Invalidate and refetch learning paths
-            queryClient.invalidateQueries({ queryKey: ['learningPaths', userId] })
+            queryClient.invalidateQueries({ queryKey: ['learningPaths'] })
         },
     })
 }
@@ -77,11 +76,12 @@ export function useUpdateProgress() {
 
     return useMutation({
         mutationFn: ({ pathId, progressData }: { pathId: string; progressData: any }) =>
-            api.post(endpoints.learningPaths.progress(pathId), progressData),
+            api.updateLearningProgress(pathId, progressData),
         onSuccess: (_data, { pathId }) => {
             // Invalidate related queries
             queryClient.invalidateQueries({ queryKey: ['learningPath', pathId] })
             queryClient.invalidateQueries({ queryKey: ['learningPaths'] })
+            queryClient.invalidateQueries({ queryKey: ['progressDashboard'] })
         },
     })
 }

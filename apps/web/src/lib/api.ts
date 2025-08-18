@@ -300,6 +300,67 @@ export const api = {
       method: 'DELETE',
     })
   },
+
+  // Learning path methods
+  async getLearningPaths(): Promise<ApiResponse<any[]>> {
+    return apiRequest<any[]>('/api/v1/learning-paths')
+  },
+
+  async getLearningPath(pathId: string): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/learning-paths/${pathId}`)
+  },
+
+  async createLearningPath(pathData: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/learning-paths', {
+      method: 'POST',
+      body: JSON.stringify(pathData),
+    })
+  },
+
+  async updateLearningPath(pathId: string, pathData: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/learning-paths/${pathId}`, {
+      method: 'PUT',
+      body: JSON.stringify(pathData),
+    })
+  },
+
+  async updateLearningProgress(pathId: string, progressData: any): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/learning-paths/${pathId}/progress`, {
+      method: 'POST',
+      body: JSON.stringify(progressData),
+    })
+  },
+
+  // Progress tracking methods
+  async getProgressDashboard(): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/progress/dashboard')
+  },
+
+  async getProgressAnalytics(timeframe: string): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/progress/analytics/${timeframe}`)
+  },
+
+  async getProgressVisualization(pathId: string): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/progress/visualization/${pathId}`)
+  },
+
+  async getUserAchievements(): Promise<ApiResponse<any[]>> {
+    return apiRequest<any[]>('/api/v1/progress/achievements')
+  },
+
+  async getUserStreaks(): Promise<ApiResponse<any>> {
+    return apiRequest<any>('/api/v1/progress/streaks')
+  },
+
+  async getUserSkills(): Promise<ApiResponse<any[]>> {
+    return apiRequest<any[]>('/api/v1/progress/skills')
+  },
+
+  async trackMilestone(pathId: string, milestoneId: string): Promise<ApiResponse<any>> {
+    return apiRequest<any>(`/api/v1/progress/milestone/${pathId}/${milestoneId}`, {
+      method: 'POST',
+    })
+  },
 }
 
 // API endpoints

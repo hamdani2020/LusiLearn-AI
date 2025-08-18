@@ -5,52 +5,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { BarChart, LineChart, ChartContainer } from '@/components/ui/chart'
 import { TrendingUp, Clock, Target, Award } from 'lucide-react'
+import { useProgressAnalytics, useProgressDashboard } from '@/hooks/use-progress-data'
 
 interface ProgressAnalyticsProps {
   userId: string
 }
 
 export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
-  // Mock analytics data - in real app this would come from API
+  const { data: weeklyData } = useProgressAnalytics('weekly')
+  const { data: monthlyData } = useProgressAnalytics('monthly')
+  const { data: dashboardData } = useProgressDashboard()
+
+  // Extract data with fallbacks
+  const weeklyAnalytics = weeklyData?.data
+  const monthlyAnalytics = monthlyData?.data
+  const dashboard = dashboardData?.data
+
   const analyticsData = {
-    weeklyProgress: [
-      { name: 'Mon', value: 2.5 },
-      { name: 'Tue', value: 1.8 },
-      { name: 'Wed', value: 3.2 },
-      { name: 'Thu', value: 2.1 },
-      { name: 'Fri', value: 4.0 },
-      { name: 'Sat', value: 1.5 },
-      { name: 'Sun', value: 2.8 }
+    weeklyProgress: weeklyAnalytics?.dailyHours || [
+      { name: 'Mon', value: 0 },
+      { name: 'Tue', value: 0 },
+      { name: 'Wed', value: 0 },
+      { name: 'Thu', value: 0 },
+      { name: 'Fri', value: 0 },
+      { name: 'Sat', value: 0 },
+      { name: 'Sun', value: 0 }
     ],
-    subjectProgress: [
-      { name: 'JavaScript', value: 85, color: 'bg-blue-500' },
-      { name: 'React', value: 60, color: 'bg-green-500' },
-      { name: 'Data Structures', value: 45, color: 'bg-purple-500' },
-      { name: 'Algorithms', value: 30, color: 'bg-orange-500' }
-    ],
+    subjectProgress: weeklyAnalytics?.subjectProgress || [],
     monthlyStats: {
-      totalHours: 45,
-      completedLessons: 23,
-      averageScore: 87,
-      streak: 7
+      totalHours: monthlyAnalytics?.totalHours || 0,
+      completedLessons: monthlyAnalytics?.completedSessions || 0,
+      averageScore: monthlyAnalytics?.averageScore || 0,
+      streak: dashboard?.weeklyAnalytics?.currentStreak || 0
     },
-    learningInsights: [
+    learningInsights: dashboard?.insights || [
       {
-        type: 'strength',
-        title: 'Strong in Problem Solving',
-        description: 'You excel at algorithmic thinking and debugging',
-        icon: Award
-      },
-      {
-        type: 'improvement',
-        title: 'Focus on Consistency',
-        description: 'Try to maintain daily learning sessions for better retention',
-        icon: Target
-      },
-      {
-        type: 'recommendation',
-        title: 'Ready for Advanced Topics',
-        description: 'Your JavaScript skills are strong enough for React patterns',
+        type: 'info',
+        title: 'Start Your Learning Journey',
+        description: 'Complete your first learning session to see personalized insights',
         icon: TrendingUp
       }
     ]
