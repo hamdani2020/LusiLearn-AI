@@ -383,12 +383,13 @@ export const endpoints = {
   // Content endpoints
   content: {
     search: '/api/v1/content/search',
-    recommendations: (userId: string) => `/api/v1/users/${userId}/recommendations`,
+    recommendations: (userId: string) => `/api/v1/content/recommendations`,
     item: (contentId: string) => `/api/v1/content/${contentId}`,
-    bookmark: (userId: string, contentId: string) => `/api/v1/users/${userId}/bookmarks/${contentId}`,
-    bookmarks: (userId: string) => `/api/v1/users/${userId}/bookmarks`,
-    interaction: (userId: string) => `/api/v1/users/${userId}/interactions`,
+    bookmark: (userId: string, contentId: string) => `/api/v1/content/users/${userId}/bookmarks/${contentId}`,
+    bookmarks: (userId: string) => `/api/v1/content/users/${userId}/bookmarks`,
+    interaction: (userId: string) => `/api/v1/content/users/${userId}/interactions`,
     rate: (contentId: string) => `/api/v1/content/${contentId}/rate`,
+    trending: '/api/v1/content/trending',
   },
 
   // Collaboration endpoints

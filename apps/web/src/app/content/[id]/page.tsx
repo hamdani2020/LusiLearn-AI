@@ -26,7 +26,7 @@ export default function ContentPage() {
   const { data: content, isLoading, error } = useQuery({
     queryKey: ['content', contentId],
     queryFn: async () => {
-      const response = await api.get<{ data: ContentItem }>(
+      const response = await api.get<{ success: boolean; data: ContentItem }>(
         endpoints.content.item(contentId)
       )
       return response.data
@@ -38,7 +38,7 @@ export default function ContentPage() {
   const { data: bookmarks = [] } = useQuery({
     queryKey: ['bookmarks', MOCK_USER_ID],
     queryFn: async () => {
-      const response = await api.get<{ data: any[] }>(
+      const response = await api.get<{ success: boolean; data: any[] }>(
         endpoints.content.bookmarks(MOCK_USER_ID)
       )
       return response.data

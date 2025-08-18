@@ -36,10 +36,11 @@ export interface ContentItem extends BaseEntity {
 }
 
 export interface ContentQuery {
-  query: string;
+  query?: string;
   subject?: string;
   difficulty?: DifficultyLevel;
   format?: ContentFormat;
+  source?: ContentSource;
   ageRating?: AgeRating;
   duration?: {
     min?: number;

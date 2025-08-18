@@ -11,6 +11,7 @@ import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
+import { createContentRoutes } from './routes/content.routes';
 import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
 import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
 import { HealthCheckService } from './services/health-check.service';
@@ -170,6 +171,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 50 // Standard limit for collaboration features
+    }
+  },
+  {
+    path: '/content',
+    router: createContentRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: false, // Some endpoints like search don't require auth
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 60 // Higher limit for content discovery
     }
   },
   {

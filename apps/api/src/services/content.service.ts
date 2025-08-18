@@ -774,6 +774,78 @@ export class ContentService {
     }
   }
 
+  async getRecommendations(userId: string, options: {
+    subject?: string;
+    limit?: number;
+  } = {}): Promise<ContentRecommendation[]> {
+    try {
+      const { subject, limit = 10 } = options;
+      
+      // For now, implement a simple recommendation algorithm
+      // In a real system, this would use ML models and user behavior analysis
+      
+      const query: ContentQuery = {
+        subject,
+        limit: limit * 2, // Get more items to filter and rank
+        page: 1
+      };
+
+      const searchResult = await this.searchContent(query);
+      const recommendations: ContentRecommendation[] = [];
+
+      for (const content of searchResult.items) {
+        // Calculate relevance score based on various factors
+        let relevanceScore = 0;
+        let reason = '';
+        const matchedSkills: string[] = [];
+
+        // Base score from quality metrics
+        relevanceScore += content.qualityMetrics.userRating * 0.2;
+        relevanceScore += content.qualityMetrics.effectivenessScore * 0.3;
+        relevanceScore += content.qualityMetrics.completionRate * 0.2;
+
+        // Subject match bonus
+        if (subject && content.metadata.subject.toLowerCase().includes(subject.toLowerCase())) {
+          relevanceScore += 0.3;
+          reason = `Matches your interest in ${subject}`;
+          matchedSkills.push(subject);
+        } else {
+          reason = 'AI-powered recommendation based on quality metrics';
+        }
+
+        // Penalty for high report count
+        if (content.qualityMetrics.reportCount > 0) {
+          relevanceScore -= content.qualityMetrics.reportCount * 0.1;
+        }
+
+        // Normalize score to 0-1 range
+        relevanceScore = Math.max(0, Math.min(1, relevanceScore));
+
+        recommendations.push({
+          content,
+          relevanceScore,
+          reason,
+          matchedSkills
+        });
+      }
+
+      // Sort by relevance score and return top results
+      recommendations.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      
+      logger.info('Generated content recommendations:', {
+        userId,
+        subject,
+        recommendationsCount: recommendations.length,
+        topScore: recommendations[0]?.relevanceScore
+      });
+
+      return recommendations.slice(0, limit);
+    } catch (error) {
+      logger.error('Error getting content recommendations:', error);
+      throw error;
+    }
+  }
+
   async categorizeContent(content: ContentItem): Promise<{ 
     primaryCategory: string; 
     secondaryCategories: string[]; 

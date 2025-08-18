@@ -24,8 +24,8 @@ import {
   ContentInteraction 
 } from '@/types'
 
-// Mock user ID - in real app this would come from auth context
-const MOCK_USER_ID = 'user-123'
+// Get user ID from auth context - for now using a mock
+const MOCK_USER_ID = 'user-123' // TODO: Replace with real auth context
 
 export default function ContentDiscoveryPage() {
   const [activeTab, setActiveTab] = useState('discover')
@@ -37,7 +37,7 @@ export default function ContentDiscoveryPage() {
   const { data: recommendations = [], isLoading: recommendationsLoading, refetch: refetchRecommendations } = useQuery({
     queryKey: ['recommendations', MOCK_USER_ID],
     queryFn: async () => {
-      const response = await api.get<{ data: ContentRecommendation[] }>(
+      const response = await api.get<{ success: boolean; data: ContentRecommendation[] }>(
         endpoints.content.recommendations(MOCK_USER_ID)
       )
       return response.data
@@ -49,7 +49,7 @@ export default function ContentDiscoveryPage() {
   const { data: bookmarks = [], isLoading: bookmarksLoading } = useQuery({
     queryKey: ['bookmarks', MOCK_USER_ID],
     queryFn: async () => {
-      const response = await api.get<{ data: BookmarkedContent[] }>(
+      const response = await api.get<{ success: boolean; data: BookmarkedContent[] }>(
         endpoints.content.bookmarks(MOCK_USER_ID)
       )
       return response.data
@@ -66,7 +66,7 @@ export default function ContentDiscoveryPage() {
   const handleSearch = async (query: ContentSearchQuery) => {
     setIsSearching(true)
     try {
-      const response = await api.post<{ data: ContentSearchResult }>(
+      const response = await api.post<{ success: boolean; data: ContentSearchResult }>(
         endpoints.content.search,
         query
       )
