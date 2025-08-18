@@ -76,9 +76,9 @@ CREATE TABLE IF NOT EXISTS content_reports (
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_content_items_source ON content_items(source);
 CREATE INDEX IF NOT EXISTS idx_content_items_active ON content_items(is_active);
-CREATE INDEX IF NOT EXISTS idx_content_items_metadata_subject ON content_items USING GIN ((metadata->>'subject'));
-CREATE INDEX IF NOT EXISTS idx_content_items_metadata_difficulty ON content_items USING GIN ((metadata->>'difficulty'));
-CREATE INDEX IF NOT EXISTS idx_content_items_quality_rating ON content_items USING GIN ((quality_metrics->>'userRating'));
+CREATE INDEX IF NOT EXISTS idx_content_items_metadata_subject ON content_items ((metadata->>'subject'));
+CREATE INDEX IF NOT EXISTS idx_content_items_metadata_difficulty ON content_items ((metadata->>'difficulty'));
+CREATE INDEX IF NOT EXISTS idx_content_items_quality_rating ON content_items (((quality_metrics->>'userRating')::numeric));
 CREATE INDEX IF NOT EXISTS idx_content_items_created_at ON content_items(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_content_bookmarks_user_id ON content_bookmarks(user_id);

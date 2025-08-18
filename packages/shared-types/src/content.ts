@@ -51,14 +51,11 @@ export interface ContentQuery {
 }
 
 export interface ContentRecommendation {
-  contentId: string;
-  score: number; // 0-1 relevance score
+  [x: string]: any;
+  content: ContentItem;
+  relevanceScore: number; // 0-1 relevance score
   reason: string;
-  metadata: {
-    difficulty: DifficultyLevel;
-    estimatedTime: number;
-    format: ContentFormat;
-  };
+  matchedSkills: string[];
 }
 
 export interface ValidationResult {

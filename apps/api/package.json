@@ -18,6 +18,7 @@
     "db:migrate": "tsx src/database/migrate.ts migrate",
     "db:status": "tsx src/database/migrate.ts status",
     "db:rollback": "tsx src/database/migrate.ts rollback",
+    "migrate:content": "tsx src/scripts/run-content-migration.ts",
     "db:seed": "tsx src/database/migrate.ts seed",
     "db:health": "tsx src/database/migrate.ts health"
   },

@@ -1,3 +1,6 @@
+// Import polyfills first to ensure browser globals are available
+import './polyfills';
+
 import express from 'express';
 import { createServer } from 'http';
 import compression from 'compression';

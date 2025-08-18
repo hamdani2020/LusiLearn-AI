@@ -6,9 +6,9 @@ import { ContentModerationService, ModerationResult, QualityAssessment } from '.
 import { ElasticsearchService, ContentSearchQuery, SearchResult } from './elasticsearch.service';
 import { logger } from '../utils/logger';
 import { ValidationError, NotFoundError } from '../middleware/error-handler';
-import { 
-  ContentItem, 
-  ContentQuery, 
+import {
+  ContentItem,
+  ContentQuery,
   ContentRecommendation,
   ValidationResult,
   ContentSource,
@@ -53,13 +53,13 @@ export class ContentService {
   async searchContent(query: ContentQuery): Promise<{ items: ContentItem[], total: number }> {
     try {
       logger.info('Searching content:', { query: query.query, filters: query });
-      
+
       const result = await this.contentRepository.search(query);
-      
-      logger.info('Content search completed:', { 
-        query: query.query, 
+
+      logger.info('Content search completed:', {
+        query: query.query,
         resultsCount: result.items.length,
-        total: result.total 
+        total: result.total
       });
 
       return result;
@@ -93,7 +93,7 @@ export class ContentService {
 
       logger.info('Starting content aggregation:', { sources, maxPerSource, subjects });
 
-      const aggregationPromises = sources.map(source => 
+      const aggregationPromises = sources.map(source =>
         this.aggregateFromSource(source, subjects, maxPerSource, refreshExisting)
       );
 
@@ -107,8 +107,8 @@ export class ContentService {
   }
 
   async aggregateFromSource(
-    source: ContentSource, 
-    subjects: string[], 
+    source: ContentSource,
+    subjects: string[],
     maxPerSource: number,
     refreshExisting: boolean
   ): Promise<void> {
@@ -144,12 +144,12 @@ export class ContentService {
         };
 
         const videos = await this.youtubeService.searchVideos(searchOptions);
-        
+
         for (const video of videos) {
           try {
             // Check if content already exists
             const existing = await this.contentRepository.findByExternalId(
-              ContentSource.YOUTUBE, 
+              ContentSource.YOUTUBE,
               video.id
             );
 
@@ -158,7 +158,7 @@ export class ContentService {
             }
 
             const contentItem = await this.youtubeService.convertToContentItem(video);
-            
+
             if (existing && refreshExisting) {
               // Update existing content
               await this.contentRepository.update(existing.id, {
@@ -195,12 +195,12 @@ export class ContentService {
         logger.info(`Aggregating Khan Academy content for subject: ${subject}`);
 
         const contentItems = await this.khanAcademyService.getContentBySubject(subject, maxPerSubject);
-        
+
         for (const item of contentItems) {
           try {
             // Check if content already exists
             const existing = await this.contentRepository.findByExternalId(
-              ContentSource.KHAN_ACADEMY, 
+              ContentSource.KHAN_ACADEMY,
               item.id
             );
 
@@ -209,7 +209,7 @@ export class ContentService {
             }
 
             let contentItem;
-            
+
             // Convert based on content type
             switch (item.kind) {
               case 'Video':
@@ -318,10 +318,10 @@ export class ContentService {
         sourceReliability: this.getSourceReliabilityScore(content.source)
       });
 
-      logger.info('Content validation completed:', { 
-        contentId, 
-        isValid: validation.isValid, 
-        qualityScore: validation.qualityScore 
+      logger.info('Content validation completed:', {
+        contentId,
+        isValid: validation.isValid,
+        qualityScore: validation.qualityScore
       });
 
       return validation;
@@ -619,7 +619,7 @@ export class ContentService {
       'explicit', 'adult', 'mature', 'violence', 'inappropriate'
     ];
 
-    return !inappropriateKeywords.some(keyword => 
+    return !inappropriateKeywords.some(keyword =>
       title.includes(keyword) || description.includes(keyword)
     );
   }
@@ -635,22 +635,22 @@ export class ContentService {
 
     // Weighted quality score calculation
     let score = 0;
-    
+
     // User rating (0-5 scale, weight: 25%)
     score += (userRating / 5) * 25;
-    
+
     // Completion rate (0-100 scale, weight: 20%)
     score += (completionRate / 100) * 20;
-    
+
     // Effectiveness score (0-100 scale, weight: 25%)
     score += (effectivenessScore / 100) * 25;
-    
+
     // Source reliability (0-100 scale, weight: 20%)
     score += (sourceReliability / 100) * 20;
-    
+
     // Penalty for reports (subtract 2 points per report, max 10 points)
     score -= Math.min(reportCount * 2, 10);
-    
+
     // Penalty for low engagement
     if (completionRate < 30) {
       score -= 5;
@@ -676,13 +676,13 @@ export class ContentService {
   async searchContentAdvanced(searchQuery: ContentSearchQuery): Promise<SearchResult> {
     try {
       logger.info('Advanced content search:', { query: searchQuery.query, filters: searchQuery.filters });
-      
+
       const result = await this.elasticsearchService.searchContent(searchQuery);
-      
-      logger.info('Advanced content search completed:', { 
-        query: searchQuery.query, 
+
+      logger.info('Advanced content search completed:', {
+        query: searchQuery.query,
         resultsCount: result.items.length,
-        total: result.total 
+        total: result.total
       });
 
       return result;
@@ -699,7 +699,7 @@ export class ContentService {
         page: searchQuery.page,
         limit: searchQuery.size
       };
-      
+
       const fallbackResult = await this.searchContent(fallbackQuery);
       return {
         items: fallbackResult.items,
@@ -780,10 +780,10 @@ export class ContentService {
   } = {}): Promise<ContentRecommendation[]> {
     try {
       const { subject, limit = 10 } = options;
-      
+
       // For now, implement a simple recommendation algorithm
       // In a real system, this would use ML models and user behavior analysis
-      
+
       const query: ContentQuery = {
         subject,
         limit: limit * 2, // Get more items to filter and rank
@@ -831,7 +831,7 @@ export class ContentService {
 
       // Sort by relevance score and return top results
       recommendations.sort((a, b) => b.relevanceScore - a.relevanceScore);
-      
+
       logger.info('Generated content recommendations:', {
         userId,
         subject,
@@ -846,10 +846,10 @@ export class ContentService {
     }
   }
 
-  async categorizeContent(content: ContentItem): Promise<{ 
-    primaryCategory: string; 
-    secondaryCategories: string[]; 
-    tags: string[] 
+  async categorizeContent(content: ContentItem): Promise<{
+    primaryCategory: string;
+    secondaryCategories: string[];
+    tags: string[]
   }> {
     try {
       const title = content.title.toLowerCase();
@@ -943,8 +943,8 @@ export class ContentService {
   }
 
   async generateContentRecommendations(
-    userId: string, 
-    userPreferences: any, 
+    userId: string,
+    userPreferences: any,
     limit: number = 10
   ): Promise<ContentRecommendation[]> {
     try {
@@ -966,25 +966,21 @@ export class ContentService {
 
       // Convert to recommendations with scoring
       const recommendations: ContentRecommendation[] = searchResult.items.map(content => ({
-        contentId: content.id,
-        score: this.calculateRecommendationScore(content, userPreferences),
+        content,
+        relevanceScore: this.calculateRecommendationScore(content, userPreferences),
         reason: this.generateRecommendationReason(content, userPreferences),
-        metadata: {
-          difficulty: content.metadata.difficulty,
-          estimatedTime: content.metadata.duration,
-          format: content.metadata.format
-        }
+        matchedSkills: this.extractMatchedSkills(content, userPreferences)
       }));
 
-      // Sort by score and limit results
+      // Sort by relevance score and limit results
       const sortedRecommendations = recommendations
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
         .slice(0, limit);
 
-      logger.info('Content recommendations generated:', { 
-        userId, 
+      logger.info('Content recommendations generated:', {
+        userId,
         count: sortedRecommendations.length,
-        avgScore: sortedRecommendations.reduce((sum, rec) => sum + rec.score, 0) / sortedRecommendations.length
+        avgScore: sortedRecommendations.reduce((sum, rec) => sum + rec.relevanceScore, 0) / sortedRecommendations.length
       });
 
       return sortedRecommendations;
@@ -1005,7 +1001,7 @@ export class ContentService {
     // User preference matching (40% weight)
     if (userPreferences.interests) {
       const contentText = `${content.title} ${content.description} ${content.metadata.topics.join(' ')}`.toLowerCase();
-      const matchingInterests = userPreferences.interests.filter((interest: string) => 
+      const matchingInterests = userPreferences.interests.filter((interest: string) =>
         contentText.includes(interest.toLowerCase())
       ).length;
       score += (matchingInterests / userPreferences.interests.length) * 0.2;
@@ -1050,7 +1046,7 @@ export class ContentService {
 
     if (userPreferences.interests) {
       const contentText = `${content.title} ${content.description}`.toLowerCase();
-      const matchingInterests = userPreferences.interests.filter((interest: string) => 
+      const matchingInterests = userPreferences.interests.filter((interest: string) =>
         contentText.includes(interest.toLowerCase())
       );
       if (matchingInterests.length > 0) {
@@ -1063,6 +1059,36 @@ export class ContentService {
     }
 
     return reasons.length > 0 ? `Recommended because it's ${reasons.join(' and ')}` : 'Recommended based on your profile';
+  }
+
+  private extractMatchedSkills(content: ContentItem, userPreferences: any): string[] {
+    const matchedSkills: string[] = [];
+
+    if (userPreferences.interests) {
+      const contentText = `${content.title} ${content.description} ${content.metadata.topics.join(' ')}`.toLowerCase();
+      const matchingInterests = userPreferences.interests.filter((interest: string) =>
+        contentText.includes(interest.toLowerCase())
+      );
+      matchedSkills.push(...matchingInterests);
+    }
+
+    // Add subject as a matched skill if it aligns with user preferences
+    if (userPreferences.subjects && userPreferences.subjects.includes(content.metadata.subject)) {
+      matchedSkills.push(content.metadata.subject);
+    }
+
+    // Add topics that match user skills
+    if (userPreferences.skills) {
+      const matchingTopics = content.metadata.topics.filter(topic =>
+        userPreferences.skills.some((skill: string) =>
+          skill.toLowerCase().includes(topic.toLowerCase()) ||
+          topic.toLowerCase().includes(skill.toLowerCase())
+        )
+      );
+      matchedSkills.push(...matchingTopics);
+    }
+
+    return [...new Set(matchedSkills)]; // Remove duplicates
   }
 
   private delay(ms: number): Promise<void> {
