@@ -99,9 +99,9 @@ class HealthService:
         redis_result = await self._check_redis()
         health_results['services']['redis'] = redis_result
         
-        # Check OpenAI
-        openai_result = await self._check_openai()
-        health_results['services']['openai'] = openai_result
+        # Check AI provider (OpenAI or Gemini)
+        ai_result = await self._check_ai_provider()
+        health_results['services']['ai_provider'] = ai_result
         
         # Check Pinecone
         pinecone_result = await self._check_pinecone()
@@ -114,7 +114,7 @@ class HealthService:
         # Determine overall status
         service_statuses = [
             redis_result['status'],
-            openai_result['status'], 
+            ai_result['status'], 
             pinecone_result['status'],
             system_result['status']
         ]
@@ -178,50 +178,6 @@ class HealthService:
             
         except Exception as e:
             logger.error(f"Redis health check failed: {e}")
-            return {
-                'status': 'unhealthy',
-                'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),
-                'error': str(e)
-            }
-    
-    async def _check_openai(self) -> Dict[str, Any]:
-        """Check OpenAI API connectivity and performance."""
-        start_time = datetime.now()
-        
-        try:
-            # Test basic API call
-            response = await self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "Health check test"}],
-                max_tokens=5,
-                temperature=0
-            )
-            
-            if not response.choices or not response.choices[0].message.content:
-                raise Exception("OpenAI API returned empty response")
-            
-            latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
-            status = 'healthy'
-            if latency_ms > 5000:  # 5 seconds
-                status = 'degraded'
-            
-            return {
-                'status': status,
-                'latency_ms': latency_ms,
-                'model': response.model,
-                'error': None
-            }
-            
-        except openai.RateLimitError as e:
-            logger.warning(f"OpenAI rate limit during health check: {e}")
-            return {
-                'status': 'degraded',
-                'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),
-                'error': 'Rate limit exceeded'
-            }
-        except Exception as e:
-            logger.error(f"OpenAI health check failed: {e}")
             return {
                 'status': 'unhealthy',
                 'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),
@@ -368,3 +324,86 @@ class HealthService:
                 'timestamp': datetime.now().isoformat(),
                 'error': str(e)
             }
+
+    async def _check_ai_provider(self) -> Dict[str, Any]:
+        """Check AI provider connectivity and performance."""
+        start_time = datetime.now()
+        
+        # Try OpenAI first if available
+        if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your-openai-api-key":
+            try:
+                # Test basic API call
+                response = await self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": "Health check test"}],
+                    max_tokens=5,
+                    temperature=0
+                )
+                
+                if not response.choices or not response.choices[0].message.content:
+                    raise Exception("OpenAI API returned empty response")
+                
+                latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                
+                status = 'healthy'
+                if latency_ms > 5000:  # 5 seconds
+                    status = 'degraded'
+                
+                return {
+                    'status': status,
+                    'latency_ms': latency_ms,
+                    'provider': 'openai',
+                    'model': response.model,
+                    'error': None
+                }
+                
+            except openai.RateLimitError as e:
+                logger.warning(f"OpenAI rate limit during health check: {e}")
+                return {
+                    'status': 'degraded',
+                    'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),
+                    'provider': 'openai',
+                    'error': 'Rate limit exceeded'
+                }
+            except Exception as e:
+                logger.warning(f"OpenAI health check failed: {e}")
+                # Fall back to Gemini check
+        
+        # Try Gemini if OpenAI is not available or failed
+        if settings.GEMINI_API_KEY:
+            try:
+                # Import Gemini service for health check
+                from .gemini_service import GeminiService
+                gemini_service = GeminiService()
+                await gemini_service.initialize()
+                
+                # Test basic API call
+                response = await gemini_service._make_gemini_request("Health check test")
+                
+                if not response:
+                    raise Exception("Gemini API returned empty response")
+                
+                latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                
+                status = 'healthy'
+                if latency_ms > 5000:  # 5 seconds
+                    status = 'degraded'
+                
+                return {
+                    'status': status,
+                    'latency_ms': latency_ms,
+                    'provider': 'gemini',
+                    'model': 'gemini-pro',
+                    'error': None
+                }
+                
+            except Exception as e:
+                logger.warning(f"Gemini health check failed: {e}")
+        
+        # If both providers fail, return degraded status
+        return {
+            'status': 'degraded',
+            'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),
+            'provider': 'none',
+            'error': 'No AI providers available'
+        }
