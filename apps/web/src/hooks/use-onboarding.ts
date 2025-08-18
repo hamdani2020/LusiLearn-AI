@@ -65,7 +65,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/start')
+      const response = await api.post('/api/v1/onboarding/start')
       
       if (!response.success) {
         throw new Error(response.message || 'Failed to start onboarding')
@@ -85,7 +85,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.get('/onboarding/session')
+      const response = await api.get('/api/v1/onboarding/session')
       
       if (!response.success) {
         if (response.error === 'No active onboarding session found') {
@@ -108,7 +108,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.get('/onboarding/status')
+      const response = await api.get('/api/v1/onboarding/status')
       
       if (!response.success) {
         throw new Error(response.message || 'Failed to get onboarding status')
@@ -132,7 +132,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/skill-assessment/questions', {
+      const response = await api.post('/api/v1/onboarding/skill-assessment/questions', {
         subject
       })
       
@@ -158,7 +158,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/skill-assessment/evaluate', {
+      const response = await api.post('/api/v1/onboarding/skill-assessment/evaluate', {
         answers
       })
       
@@ -180,7 +180,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/learning-preferences', {
+      const response = await api.post('/api/v1/onboarding/learning-preferences', {
         skillAssessment
       })
       
@@ -205,7 +205,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/goals', {
+      const response = await api.post('/api/v1/onboarding/goals', {
         skillAssessment,
         learningPreferences
       })
@@ -228,7 +228,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/progress', {
+      const response = await api.post('/api/v1/onboarding/progress', {
         step,
         data
       })
@@ -251,7 +251,7 @@ export function useOnboarding() {
       setIsLoading(true)
       setError(null)
       
-      const response = await api.post('/onboarding/complete')
+      const response = await api.post('/api/v1/onboarding/complete')
       
       if (!response.success) {
         throw new Error(response.message || 'Failed to complete onboarding')

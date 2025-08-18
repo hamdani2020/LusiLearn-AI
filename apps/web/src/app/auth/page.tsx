@@ -114,8 +114,8 @@ export default function AuthPage() {
         
         // Add a small delay to ensure tokens are stored before redirect
         setTimeout(() => {
-          console.log('Debug - Redirecting to dashboard...')
-          window.location.href = '/dashboard'
+          console.log('Debug - Redirecting to onboarding...')
+          window.location.href = '/onboarding'
         }, 200)
       } else {
         console.log('Debug - Registration failed:', response)

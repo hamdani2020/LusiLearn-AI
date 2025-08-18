@@ -21,40 +21,102 @@ export default function OnboardingPage() {
   const [progress, setProgress] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [sessionData, setSessionData] = useState<any>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   
   const { 
     startOnboarding, 
     getOnboardingSession, 
     updateOnboardingProgress,
-    completeOnboarding 
+    completeOnboarding,
+    getOnboardingStatus
   } = useOnboarding()
 
   useEffect(() => {
-    initializeOnboarding()
+    checkAuthentication()
   }, [])
+
+  const checkAuthentication = () => {
+    if (typeof window !== 'undefined') {
+      const accessToken = localStorage.getItem('accessToken')
+      if (!accessToken) {
+        console.log('🔐 No access token found, redirecting to login')
+        router.push('/auth/login')
+        return
+      }
+      console.log('🔐 Access token found, proceeding with onboarding')
+      setIsAuthenticated(true)
+      initializeOnboarding()
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      initializeOnboarding()
+    }
+  }, [isAuthenticated])
 
   const initializeOnboarding = async () => {
     try {
       setIsLoading(true)
+      console.log('🔍 Initializing onboarding...')
       
-      // Check if user already has an onboarding session
+      // First check if user has already completed onboarding
+      console.log('📊 Checking onboarding status...')
+      const status = await getOnboardingStatus()
+      console.log('📊 Onboarding status:', status)
+      
+      if (status.isCompleted) {
+        console.log('✅ User has already completed onboarding, redirecting to dashboard')
+        router.push('/dashboard')
+        return
+      }
+      
+      // Check if user already has an active onboarding session
+      console.log('🔍 Checking for existing onboarding session...')
       const session = await getOnboardingSession()
+      console.log('🔍 Existing session:', session)
       
       if (session) {
+        console.log('📝 Using existing onboarding session')
         setSessionData(session)
         setCurrentStep(session.currentStep)
         setProgress(session.progress.completionPercentage)
       } else {
+        console.log('🆕 Starting new onboarding session...')
         // Start new onboarding session
         const newSession = await startOnboarding()
+        console.log('🆕 New session created:', newSession)
         setSessionData(newSession)
         setCurrentStep(newSession.currentStep)
         setProgress(newSession.progress.completionPercentage)
       }
-    } catch (error) {
-      console.error('Error initializing onboarding:', error)
-      // Redirect to dashboard if there's an error
-      router.push('/dashboard')
+    } catch (error: any) {
+      console.error('❌ Error initializing onboarding:', error)
+      
+      // Check if it's an authentication error
+      if (error.message && error.message.includes('401')) {
+        console.log('🔐 Authentication error, redirecting to login')
+        router.push('/auth/login')
+        return
+      }
+      
+      // Check if it's a "no session" error
+      if (error.message && error.message.includes('No active onboarding session')) {
+        console.log('🔄 No active session, trying to start new one...')
+        try {
+          const newSession = await startOnboarding()
+          console.log('🆕 New session started after error:', newSession)
+          setSessionData(newSession)
+          setCurrentStep(newSession.currentStep)
+          setProgress(newSession.progress.completionPercentage)
+        } catch (startError) {
+          console.error('❌ Error starting new onboarding session:', startError)
+          router.push('/dashboard')
+        }
+      } else {
+        console.log('❌ Unknown error, redirecting to dashboard')
+        router.push('/dashboard')
+      }
     } finally {
       setIsLoading(false)
     }
