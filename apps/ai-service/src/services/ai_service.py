@@ -41,9 +41,50 @@ class AIService:
     async def initialize(self):
         """Initialize all AI services."""
         try:
-            # Initialize both AI provider services
-            await self.openai_service.initialize()
-            await self.gemini_service.initialize()
+            # Check OpenAI API key validity
+            openai_available = False
+            if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your-openai-api-key":
+                try:
+                    await self.openai_service.initialize()
+                    # Test OpenAI with a simple request
+                    test_response = await self.openai_service._test_api_connection()
+                    if test_response:
+                        openai_available = True
+                        logger.info("OpenAI service is available and working")
+                    else:
+                        logger.warning("OpenAI service failed API test")
+                except Exception as e:
+                    logger.warning(f"OpenAI service not available: {e}")
+            else:
+                logger.warning("OpenAI API key not configured or invalid")
+            
+            # Initialize Gemini service
+            gemini_available = False
+            if settings.GEMINI_API_KEY:
+                try:
+                    await self.gemini_service.initialize()
+                    # Test Gemini with a simple request
+                    test_response = await self.gemini_service._test_api_connection()
+                    if test_response:
+                        gemini_available = True
+                        logger.info("Gemini service is available and working")
+                    else:
+                        logger.warning("Gemini service failed API test")
+                except Exception as e:
+                    logger.warning(f"Gemini service not available: {e}")
+            else:
+                logger.warning("Gemini API key not configured")
+            
+            # Set the best available provider
+            if gemini_available:
+                self.current_provider = AIProvider.GEMINI
+                logger.info("Setting Gemini as primary AI provider")
+            elif openai_available:
+                self.current_provider = AIProvider.OPENAI
+                logger.info("Setting OpenAI as primary AI provider")
+            else:
+                logger.warning("No AI providers available, using algorithmic fallback only")
+                self.current_provider = AIProvider.GEMINI  # Default to Gemini for consistency
             
             # Initialize content recommendation engine
             await self.content_recommendation_engine.initialize()

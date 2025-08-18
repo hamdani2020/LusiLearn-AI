@@ -80,6 +80,16 @@ class GeminiService:
         if self.redis_client:
             await self.redis_client.close()
     
+    async def _test_api_connection(self) -> bool:
+        """Test Gemini API connection with a simple request."""
+        try:
+            # Make a simple test request
+            response = await self._make_gemini_request("Hello")
+            return bool(response and response.strip())
+        except Exception as e:
+            logger.warning(f"Gemini API test failed: {e}")
+            return False
+    
     async def generate_learning_path(
         self, 
         request: LearningPathRequest

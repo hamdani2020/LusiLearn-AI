@@ -74,3 +74,6 @@ docker-compose.override.yml
 
 # Misc
 *.tgz
+.turbo/
+.svelte-kit/
+package-lock.json

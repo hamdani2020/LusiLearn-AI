@@ -1,3 +1,6 @@
+// Import polyfills first to ensure browser globals are available
+import './polyfills';
+
 import express from 'express';
 import { createServer } from 'http';
 import compression from 'compression';
@@ -11,6 +14,8 @@ import { createProgressRoutes } from './routes/progress.routes';
 import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.routes';
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
+import { createContentRoutes } from './routes/content.routes';
+import { createOnboardingRoutes } from './routes/onboarding.routes';
 import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
 import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
 import { HealthCheckService } from './services/health-check.service';
@@ -107,7 +112,7 @@ const routeConfigs: RouteConfig[] = [
     requiresAuth: false,
     rateLimit: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 5, // Very restrictive for auth endpoints to prevent brute force
+      max: process.env.NODE_ENV === 'production' ? 20 : 100, // 100 in dev, 20 in production
       skipSuccessfulRequests: false,
       skipFailedRequests: false,
     }
@@ -173,6 +178,16 @@ const routeConfigs: RouteConfig[] = [
     }
   },
   {
+    path: '/content',
+    router: createContentRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: false, // Some endpoints like search don't require auth
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 60 // Higher limit for content discovery
+    }
+  },
+  {
     path: '/safety',
     router: createSafetyModerationRoutes(db.getPool()),
     version: 'v1',
@@ -190,6 +205,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 100 // Higher limit for monitoring endpoints
+    }
+  },
+  {
+    path: '/onboarding',
+    router: createOnboardingRoutes(db.getPool()),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 30 // Limited for onboarding endpoints
     }
   }
 ];

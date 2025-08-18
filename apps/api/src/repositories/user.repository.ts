@@ -16,12 +16,13 @@ export class UserRepository {
     const query = `
       INSERT INTO users (
         email, username, password_hash, demographics, learning_preferences,
-        skill_profile, privacy_settings, parental_controls, is_verified
+        skill_profile, privacy_settings, parental_controls, is_verified,
+        onboarding_completed, onboarding_completed_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id, email, username, demographics, learning_preferences,
                 skill_profile, privacy_settings, parental_controls, is_verified,
-                created_at, updated_at
+                onboarding_completed, onboarding_completed_at, created_at, updated_at
     `;
 
     const values = [
@@ -33,7 +34,9 @@ export class UserRepository {
       JSON.stringify(userProfile.skillProfile),
       JSON.stringify(userProfile.privacySettings),
       userProfile.parentalControls ? JSON.stringify(userProfile.parentalControls) : null,
-      userProfile.isVerified
+      userProfile.isVerified,
+      userProfile.onboardingCompleted || false,
+      userProfile.onboardingCompletedAt || null
     ];
 
     try {
@@ -63,7 +66,7 @@ export class UserRepository {
     const query = `
       SELECT id, email, username, demographics, learning_preferences,
              skill_profile, privacy_settings, parental_controls, is_verified,
-             is_active, created_at, updated_at
+             onboarding_completed, onboarding_completed_at, is_active, created_at, updated_at
       FROM users
       WHERE id = $1 AND is_active = true
     `;
@@ -85,6 +88,8 @@ export class UserRepository {
         privacySettings: user.privacy_settings,
         parentalControls: user.parental_controls,
         isVerified: user.is_verified,
+        onboardingCompleted: user.onboarding_completed,
+        onboardingCompletedAt: user.onboarding_completed_at,
         createdAt: user.created_at,
         updatedAt: user.updated_at
       };
@@ -272,6 +277,14 @@ export class UserRepository {
       updateFields.push(`is_verified = $${paramCount++}`);
       values.push(updates.isVerified);
     }
+    if (updates.onboardingCompleted !== undefined) {
+      updateFields.push(`onboarding_completed = $${paramCount++}`);
+      values.push(updates.onboardingCompleted);
+    }
+    if (updates.onboardingCompletedAt !== undefined) {
+      updateFields.push(`onboarding_completed_at = $${paramCount++}`);
+      values.push(updates.onboardingCompletedAt);
+    }
 
     if (updateFields.length === 0) {
       throw new Error('No fields to update');
@@ -285,7 +298,7 @@ export class UserRepository {
       WHERE id = $${paramCount} AND is_active = true
       RETURNING id, email, username, demographics, learning_preferences,
                 skill_profile, privacy_settings, parental_controls, is_verified,
-                created_at, updated_at
+                onboarding_completed, onboarding_completed_at, created_at, updated_at
     `;
 
     try {
@@ -305,6 +318,8 @@ export class UserRepository {
         privacySettings: user.privacy_settings,
         parentalControls: user.parental_controls,
         isVerified: user.is_verified,
+        onboardingCompleted: user.onboarding_completed,
+        onboardingCompletedAt: user.onboarding_completed_at,
         createdAt: user.created_at,
         updatedAt: user.updated_at
       };

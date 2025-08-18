@@ -6,7 +6,7 @@ export interface ContentReport {
   contentId: string;
   userId: string;
   reason: string;
-  description: string;
+  description?: string;
   severity: 'low' | 'medium' | 'high';
   status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
   createdAt: Date;
@@ -19,7 +19,7 @@ export interface CreateReportRequest {
   contentId: string;
   userId: string;
   reason: string;
-  description: string;
+  description?: string;
   severity: 'low' | 'medium' | 'high';
 }
 
