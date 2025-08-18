@@ -152,7 +152,7 @@ export const createRateLimitMiddleware = (config?: Partial<SecurityConfig['rateL
  */
 export const authRateLimit = createRateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Very restrictive for auth endpoints
+  max: process.env.NODE_ENV === 'production' ? 20 : 100, // 100 in dev, 20 in production
 });
 
 export const apiRateLimit = createRateLimitMiddleware({

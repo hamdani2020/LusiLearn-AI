@@ -53,6 +53,23 @@ class OpenAIService:
         if self.redis_client:
             await self.redis_client.close()
     
+    async def _test_api_connection(self) -> bool:
+        """Test OpenAI API connection with a simple request."""
+        try:
+            # Make a simple test request
+            response = await self._make_openai_request(
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello"}
+                ],
+                max_tokens=10,
+                temperature=0.1
+            )
+            return bool(response and response.get("content"))
+        except Exception as e:
+            logger.warning(f"OpenAI API test failed: {e}")
+            return False
+    
     async def generate_learning_path(
         self, 
         request: LearningPathRequest

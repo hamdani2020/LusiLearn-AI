@@ -106,7 +106,9 @@ export class AuthService {
           allowDataCollection: false
         },
         parentalControls: validatedData.parentalControls,
-        isVerified: false
+        isVerified: false,
+        onboardingCompleted: false,
+        onboardingCompletedAt: undefined
       };
 
       // Save user to database
@@ -134,6 +136,8 @@ export class AuthService {
           privacySettings: createdUser.privacySettings,
           parentalControls: createdUser.parentalControls,
           isVerified: createdUser.isVerified,
+          onboardingCompleted: createdUser.onboardingCompleted,
+          onboardingCompletedAt: createdUser.onboardingCompletedAt,
           createdAt: createdUser.createdAt,
           updatedAt: createdUser.updatedAt
         },

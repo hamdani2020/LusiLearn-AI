@@ -98,8 +98,44 @@ export interface LearningInsights {
   strengths: string[];
   weaknesses: string[];
   recommendations: string[];
-  predictedPerformance: number;
-  suggestedDifficulty: DifficultyLevel;
+}
+
+// Onboarding types
+export enum OnboardingStep {
+  WELCOME = 'WELCOME',
+  SKILL_ASSESSMENT = 'SKILL_ASSESSMENT',
+  LEARNING_PREFERENCES = 'LEARNING_PREFERENCES',
+  GOAL_SETTING = 'GOAL_SETTING',
+  PLATFORM_TOUR = 'PLATFORM_TOUR',
+  FIRST_SESSION = 'FIRST_SESSION',
+  COMPLETED = 'COMPLETED'
+}
+
+export interface OnboardingProgress {
+  completedSteps: OnboardingStep[];
+  currentStep: OnboardingStep;
+  totalSteps: number;
+  completionPercentage: number;
+}
+
+export interface SkillAssessmentResult {
+  overallScore: number;
+  categoryScores: Record<string, number>;
+  recommendedLevel: 'beginner' | 'intermediate' | 'advanced';
+  strengths: string[];
+  areasForImprovement: string[];
+  confidence: number;
+  completedAt: Date;
+}
+
+export interface GoalSetting {
+  id: string;
+  title: string;
+  description: string;
+  targetDate: Date;
+  priority: 'low' | 'medium' | 'high';
+  progress: number; // 0-100
+  isCompleted: boolean;
 }
 
 // Adaptive Difficulty Types
@@ -443,4 +479,34 @@ export const OptimalChallengeAnalysisSchema = z.object({
   isOptimal: z.boolean(),
   adjustment: z.enum(['increase', 'decrease', 'maintain']),
   targetComprehension: z.number().min(0).max(100)
+});
+
+// Onboarding Validation Schemas
+export const OnboardingStepSchema = z.nativeEnum(OnboardingStep);
+
+export const OnboardingProgressSchema = z.object({
+  completedSteps: z.array(OnboardingStepSchema),
+  currentStep: OnboardingStepSchema,
+  totalSteps: z.number(),
+  completionPercentage: z.number().min(0).max(100)
+});
+
+export const SkillAssessmentResultSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  categoryScores: z.record(z.number()),
+  recommendedLevel: z.enum(['beginner', 'intermediate', 'advanced']),
+  strengths: z.array(z.string()),
+  areasForImprovement: z.array(z.string()),
+  confidence: z.number().min(0).max(100),
+  completedAt: z.date()
+});
+
+export const GoalSettingSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  targetDate: z.date(),
+  priority: z.enum(['low', 'medium', 'high']),
+  progress: z.number().min(0).max(100),
+  isCompleted: z.boolean()
 });

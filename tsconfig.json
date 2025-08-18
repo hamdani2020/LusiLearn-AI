@@ -28,13 +28,14 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "apps/web/**/*.ts",
+    "apps/web/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    ".next"
+    ".next",
+    "packages/**/*"
   ]
 }
