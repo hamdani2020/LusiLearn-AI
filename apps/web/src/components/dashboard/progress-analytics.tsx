@@ -11,6 +11,19 @@ interface ProgressAnalyticsProps {
   userId: string
 }
 
+interface SubjectProgress {
+  name: string
+  value: number
+  color?: string
+}
+
+interface LearningInsight {
+  type: string
+  title: string
+  description: string
+  icon: any
+}
+
 export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
   const { data: weeklyData } = useProgressAnalytics('weekly')
   const { data: monthlyData } = useProgressAnalytics('monthly')
@@ -31,21 +44,21 @@ export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
       { name: 'Sat', value: 0 },
       { name: 'Sun', value: 0 }
     ],
-    subjectProgress: weeklyAnalytics?.subjectProgress || [],
+    subjectProgress: (weeklyAnalytics?.subjectProgress || []) as SubjectProgress[],
     monthlyStats: {
       totalHours: monthlyAnalytics?.totalHours || 0,
       completedLessons: monthlyAnalytics?.completedSessions || 0,
       averageScore: monthlyAnalytics?.averageScore || 0,
       streak: dashboard?.weeklyAnalytics?.currentStreak || 0
     },
-    learningInsights: dashboard?.insights || [
+    learningInsights: (dashboard?.insights || [
       {
         type: 'info',
         title: 'Start Your Learning Journey',
         description: 'Complete your first learning session to see personalized insights',
         icon: TrendingUp
       }
-    ]
+    ]) as LearningInsight[]
   }
 
   return (
@@ -105,15 +118,15 @@ export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
                 <BarChart data={analyticsData.subjectProgress} />
               </ChartContainer>
             </div>
-            
+
             <div className="space-y-2">
-              {analyticsData.subjectProgress.map((subject, index) => (
+              {analyticsData.subjectProgress.map((subject: SubjectProgress, index: number) => (
                 <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-muted">
                   <span className="font-medium">{subject.name}</span>
                   <div className="flex items-center space-x-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${subject.color}`}
+                      <div
+                        className={`h-2 rounded-full ${subject.color || 'bg-primary'}`}
                         style={{ width: `${subject.value}%` }}
                       />
                     </div>
@@ -126,15 +139,15 @@ export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
 
           <TabsContent value="insights" className="space-y-4">
             <div className="space-y-3">
-              {analyticsData.learningInsights.map((insight, index) => (
+              {analyticsData.learningInsights.map((insight: LearningInsight, index: number) => (
                 <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-muted">
                   <insight.icon className="h-5 w-5 text-primary mt-0.5" />
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <h5 className="font-medium">{insight.title}</h5>
-                      <Badge 
-                        variant={insight.type === 'strength' ? 'default' : 
-                                insight.type === 'improvement' ? 'secondary' : 'outline'}
+                      <Badge
+                        variant={insight.type === 'strength' ? 'default' :
+                          insight.type === 'improvement' ? 'secondary' : 'outline'}
                       >
                         {insight.type}
                       </Badge>
