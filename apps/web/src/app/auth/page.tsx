@@ -44,8 +44,8 @@ export default function AuthPage() {
         
         // Add a longer delay to ensure tokens are properly stored and propagated
         setTimeout(() => {
-          console.log('Debug - Redirecting to profile page...')
-          window.location.href = '/dashboard'
+          console.log('Debug - Redirecting to onboarding...')
+          window.location.href = '/onboarding'
         }, 500)
       } else {
         console.log('Debug - Login failed:', response)

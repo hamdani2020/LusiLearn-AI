@@ -63,6 +63,8 @@ export interface UserProfile extends BaseEntity {
   privacySettings: PrivacySettings;
   parentalControls?: ParentalControls;
   isVerified: boolean;
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: Date;
 }
 
 // Validation schemas

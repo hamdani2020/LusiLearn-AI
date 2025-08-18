@@ -22,11 +22,13 @@ export class LearningPathService {
   private learningPathRepository: LearningPathRepository;
   private userService: UserService;
   private adaptiveDifficultyService: AdaptiveDifficultyService;
+  private aiServiceUrl: string;
 
   constructor(pool: Pool) {
     this.learningPathRepository = new LearningPathRepository(pool);
     this.userService = new UserService();
     this.adaptiveDifficultyService = new AdaptiveDifficultyService(pool);
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
   }
 
   async generatePath(userId: string, subject: string, goals: LearningGoal[]): Promise<LearningPath> {
@@ -57,16 +59,28 @@ export class LearningPathService {
         milestones
       };
 
-      // Try to call AI service for enhanced path generation
+      // Enhanced AI service integration for path generation
       try {
         const enhancedPath = await this.callAIServiceForPathGeneration(userProfile, pathData);
         if (enhancedPath) {
           pathData.objectives = enhancedPath.objectives;
           pathData.milestones = enhancedPath.milestones;
           pathData.currentLevel = enhancedPath.currentLevel;
+          
+          logger.info(`AI-enhanced learning path generated for user ${userId}`, {
+            subject,
+            objectiveCount: enhancedPath.objectives.length,
+            difficultyLevel: enhancedPath.currentLevel
+          });
         }
       } catch (aiError) {
         logger.warn('AI service unavailable, using fallback path generation', { error: aiError });
+        // Use fallback path generation
+        const fallbackPath = await this.generateFallbackPath(userProfile, pathData);
+        if (fallbackPath) {
+          pathData.objectives = fallbackPath.objectives;
+          pathData.milestones = fallbackPath.milestones;
+        }
       }
 
       const learningPath = await this.learningPathRepository.create(pathData);
@@ -194,29 +208,50 @@ export class LearningPathService {
   }
 
   /**
-   * Adaptive Difficulty System Methods
+   * Enhanced Adaptive Difficulty System Methods
    */
 
   /**
-   * Analyze performance and adjust difficulty if needed
+   * Analyze performance and adjust difficulty if needed with AI integration
    */
   async adaptDifficulty(userId: string, pathId: string, recentSessions: LearningSession[]): Promise<DifficultyAdjustmentResult | null> {
     try {
+      // First, use the adaptive difficulty service for local analysis
       const adjustmentResult = await this.adaptiveDifficultyService.analyzePerformanceForDifficultyAdjustment(
         userId, 
         pathId, 
         recentSessions
       );
 
+      // If local analysis suggests adjustment, enhance it with AI insights
       if (adjustmentResult) {
-        // Apply the difficulty adjustment
-        await this.adaptiveDifficultyService.applyDifficultyAdjustment(pathId, adjustmentResult);
-        
-        logger.info(`Applied difficulty adjustment for user ${userId}`, {
-          pathId,
-          newDifficulty: adjustmentResult.newDifficulty,
-          reason: adjustmentResult.reason
-        });
+        try {
+          const aiEnhancedAdjustment = await this.callAIServiceForDifficultyAdaptation(
+            userId,
+            pathId,
+            adjustmentResult,
+            recentSessions
+          );
+          
+          if (aiEnhancedAdjustment) {
+            // Apply the AI-enhanced difficulty adjustment
+            await this.adaptiveDifficultyService.applyDifficultyAdjustment(pathId, aiEnhancedAdjustment);
+            
+            logger.info(`Applied AI-enhanced difficulty adjustment for user ${userId}`, {
+              pathId,
+              newDifficulty: aiEnhancedAdjustment.newDifficulty,
+              reason: aiEnhancedAdjustment.reason,
+              confidence: aiEnhancedAdjustment.confidence
+            });
+            
+            return aiEnhancedAdjustment;
+          }
+        } catch (aiError) {
+          logger.warn('AI service unavailable for difficulty adaptation, using local analysis', { error: aiError });
+          // Fall back to local adjustment
+          await this.adaptiveDifficultyService.applyDifficultyAdjustment(pathId, adjustmentResult);
+          return adjustmentResult;
+        }
       }
 
       return adjustmentResult;
@@ -227,11 +262,29 @@ export class LearningPathService {
   }
 
   /**
-   * Get next content based on prerequisite mastery
+   * Get next content based on prerequisite mastery with AI sequencing
    */
   async getNextContent(userId: string, pathId: string): Promise<ContentSequenceResult> {
     try {
-      return await this.adaptiveDifficultyService.sequenceContentByPrerequisites(userId, pathId);
+      // Get local sequencing first
+      const localSequencing = await this.adaptiveDifficultyService.sequenceContentByPrerequisites(userId, pathId);
+      
+      // Enhance with AI sequencing if available
+      try {
+        const aiSequencing = await this.callAIServiceForContentSequencing(userId, pathId, localSequencing);
+        if (aiSequencing) {
+          logger.info(`AI-enhanced content sequencing applied for user ${userId}`, {
+            pathId,
+            originalCount: localSequencing.nextObjectives.length,
+            enhancedCount: aiSequencing.nextObjectives.length
+          });
+          return aiSequencing;
+        }
+      } catch (aiError) {
+        logger.warn('AI service unavailable for content sequencing, using local sequencing', { error: aiError });
+      }
+      
+      return localSequencing;
     } catch (error) {
       logger.error('Error getting next content:', error);
       throw error;
@@ -239,7 +292,7 @@ export class LearningPathService {
   }
 
   /**
-   * Conduct competency test for advancement
+   * Conduct competency test for advancement with AI enhancement
    */
   async requestAdvancement(userId: string, pathId: string, requestedLevel: DifficultyLevel): Promise<CompetencyTestResult> {
     try {
@@ -280,11 +333,27 @@ export class LearningPathService {
   }
 
   /**
-   * Maintain optimal challenge level (70-85% comprehension)
+   * Maintain optimal challenge level (70-85% comprehension) with AI monitoring
    */
   async maintainOptimalChallenge(userId: string, pathId: string): Promise<OptimalChallengeAnalysis> {
     try {
       const analysis = await this.adaptiveDifficultyService.maintainOptimalChallengeLevel(userId, pathId);
+      
+      // Enhance with AI insights if available
+      try {
+        const aiEnhancedAnalysis = await this.callAIServiceForOptimalChallenge(userId, pathId, analysis);
+        if (aiEnhancedAnalysis) {
+          logger.info(`AI-enhanced optimal challenge analysis for user ${userId}`, {
+            pathId,
+            currentLevel: aiEnhancedAnalysis.currentChallengeLevel,
+            isOptimal: aiEnhancedAnalysis.isOptimal,
+            adjustment: aiEnhancedAnalysis.adjustment
+          });
+          return aiEnhancedAnalysis;
+        }
+      } catch (aiError) {
+        logger.warn('AI service unavailable for optimal challenge analysis, using local analysis', { error: aiError });
+      }
       
       logger.info(`Optimal challenge analysis completed for user ${userId}`, {
         pathId,
@@ -301,7 +370,7 @@ export class LearningPathService {
   }
 
   /**
-   * Enhanced progress update with adaptive difficulty
+   * Enhanced progress update with adaptive difficulty and AI integration
    */
   async updateProgressWithAdaptation(pathId: string, performanceData: PerformanceData, recentSessions: LearningSession[]): Promise<LearningPath | null> {
     try {
@@ -504,25 +573,27 @@ export class LearningPathService {
     return null; // No adjustment needed
   }
 
+  /**
+   * AI Service Integration Methods
+   */
+
   private async callAIServiceForPathGeneration(userProfile: any, pathData: CreateLearningPathRequest): Promise<any> {
-    // This would make an HTTP call to the AI service
-    // For now, we'll simulate this with a placeholder
-    
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8001';
-    
     try {
-      const response = await fetch(`${AI_SERVICE_URL}/api/v1/learning-paths/generate`, {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userProfile,
+          user_id: pathData.userId,
           subject: pathData.subject,
-          goals: pathData.goals,
-          currentLevel: pathData.currentLevel
+          education_level: userProfile.demographics.educationLevel,
+          learning_goals: pathData.goals.map(goal => goal.objective),
+          time_commitment: userProfile.learningPreferences.sessionDuration || 45,
+          learning_style: userProfile.learningPreferences.learningStyle || ['visual'],
+          current_level: pathData.currentLevel
         }),
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
       if (!response.ok) {
@@ -530,10 +601,189 @@ export class LearningPathService {
       }
 
       const result = await response.json();
-      return result.data;
+      return {
+        objectives: result.objectives || pathData.objectives,
+        milestones: this.generateMilestones(result.objectives || pathData.objectives),
+        currentLevel: result.difficulty_progression ? this.parseDifficultyLevel(result.difficulty_progression) : pathData.currentLevel
+      };
     } catch (error) {
       logger.warn('Failed to call AI service for path generation', { error });
       throw error;
     }
+  }
+
+  private async callAIServiceForDifficultyAdaptation(
+    userId: string,
+    pathId: string,
+    localAdjustment: DifficultyAdjustmentResult,
+    recentSessions: LearningSession[]
+  ): Promise<DifficultyAdjustmentResult | null> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/adapt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_path: { userId, pathId },
+          performance_data: {
+            recent_sessions: recentSessions,
+            local_adjustment: localAdjustment
+          },
+          user_profile: { userId }
+        }),
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.adapted_path) {
+        return {
+          newDifficulty: result.adapted_path.new_difficulty || localAdjustment.newDifficulty,
+          reason: result.adapted_path.reason || localAdjustment.reason,
+          confidence: result.adapted_path.confidence || localAdjustment.confidence,
+          recommendedActions: result.adapted_path.recommended_actions || localAdjustment.recommendedActions
+        };
+      }
+
+      return localAdjustment;
+    } catch (error) {
+      logger.warn('Failed to call AI service for difficulty adaptation', { error });
+      throw error;
+    }
+  }
+
+  private async callAIServiceForContentSequencing(
+    userId: string,
+    pathId: string,
+    localSequencing: ContentSequenceResult
+  ): Promise<ContentSequenceResult | null> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/sequence`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          objectives: localSequencing.nextObjectives,
+          user_completed: [] // This would be populated with actual completed objectives
+        }),
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.sequenced_objectives) {
+        return {
+          nextObjectives: result.sequenced_objectives,
+          prerequisitesMet: result.sequencing_info?.prerequisites_considered || localSequencing.prerequisitesMet,
+          blockedObjectives: localSequencing.blockedObjectives,
+          recommendedReview: localSequencing.recommendedReview
+        };
+      }
+
+      return localSequencing;
+    } catch (error) {
+      logger.warn('Failed to call AI service for content sequencing', { error });
+      throw error;
+    }
+  }
+
+  private async callAIServiceForOptimalChallenge(
+    userId: string,
+    pathId: string,
+    localAnalysis: OptimalChallengeAnalysis
+  ): Promise<OptimalChallengeAnalysis | null> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/adapt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_path: { userId, pathId },
+          performance_data: {
+            current_challenge_level: localAnalysis.currentChallengeLevel,
+            is_optimal: localAnalysis.isOptimal,
+            target_comprehension: localAnalysis.targetComprehension
+          },
+          user_profile: { userId }
+        }),
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.adapted_path) {
+        return {
+          currentChallengeLevel: result.adapted_path.challenge_level || localAnalysis.currentChallengeLevel,
+          isOptimal: result.adapted_path.is_optimal || localAnalysis.isOptimal,
+          adjustment: result.adapted_path.adjustment || localAnalysis.adjustment,
+          targetComprehension: result.adapted_path.target_comprehension || localAnalysis.targetComprehension
+        };
+      }
+
+      return localAnalysis;
+    } catch (error) {
+      logger.warn('Failed to call AI service for optimal challenge analysis', { error });
+      throw error;
+    }
+  }
+
+  private async generateFallbackPath(userProfile: any, pathData: CreateLearningPathRequest): Promise<any> {
+    try {
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/fallback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          education_level: userProfile.demographics.educationLevel,
+          subject: pathData.subject,
+          learning_goals: pathData.goals.map(goal => goal.objective),
+          time_commitment: userProfile.learningPreferences.sessionDuration || 45
+        }),
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.fallback_path) {
+        return {
+          objectives: result.fallback_path.objectives || pathData.objectives,
+          milestones: this.generateMilestones(result.fallback_path.objectives || pathData.objectives)
+        };
+      }
+
+      return null;
+    } catch (error) {
+      logger.warn('Failed to call AI service for fallback path generation', { error });
+      return null;
+    }
+  }
+
+  private parseDifficultyLevel(difficultyString: string): DifficultyLevel {
+    if (difficultyString.toLowerCase().includes('beginner')) {
+      return DifficultyLevel.BEGINNER;
+    } else if (difficultyString.toLowerCase().includes('intermediate')) {
+      return DifficultyLevel.INTERMEDIATE;
+    } else if (difficultyString.toLowerCase().includes('advanced')) {
+      return DifficultyLevel.ADVANCED;
+    } else if (difficultyString.toLowerCase().includes('expert')) {
+      return DifficultyLevel.EXPERT;
+    }
+    return DifficultyLevel.BEGINNER;
   }
 }

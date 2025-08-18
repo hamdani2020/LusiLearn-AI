@@ -16,6 +16,8 @@ export interface UpdateProfileRequest {
   learningPreferences?: LearningPreferences;
   privacySettings?: PrivacySettings;
   parentalControls?: ParentalControls;
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: Date;
 }
 
 export class UserService {
