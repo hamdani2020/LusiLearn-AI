@@ -34,7 +34,7 @@ export function ContentRecommendations({
 
   // Group recommendations by type
   const aiRecommended = recommendations.filter(rec => 
-    rec.reason.includes('AI') || rec.reason.includes('personalized') || rec.reason.includes('Algorithmic')
+    rec.reason.includes('AI') || rec.reason.includes('personalized')
   )
   
   const trending = recommendations.filter(rec => 
@@ -79,9 +79,9 @@ export function ContentRecommendations({
           <CardContent className="flex flex-col items-center justify-center py-8">
             <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground text-center">
-              No recommendations available in this category yet.
+              No AI-powered recommendations available right now.
               <br />
-              Keep learning to get better suggestions!
+              Our AI system is learning your preferences. Check back soon!
             </p>
           </CardContent>
         </Card>
