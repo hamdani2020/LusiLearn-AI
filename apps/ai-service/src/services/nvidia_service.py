@@ -384,11 +384,11 @@ class NVIDIAService:
         return f"""
         Recommend educational content for a student with the following profile:
         
-        Subject: {request.subject}
+        Subject: {request.current_topic}
         Education Level: {request.education_level}
-        Learning Style: {', '.join(request.learning_style)}
-        Current Level: {request.current_level}
-        Interests: {', '.join(request.interests)}
+        Skill Level: {request.skill_level}
+        Learning Context: {request.learning_context}
+        Preferred Formats: {', '.join(request.preferred_formats)}
         
         Please provide:
         1. A list of recommended content items

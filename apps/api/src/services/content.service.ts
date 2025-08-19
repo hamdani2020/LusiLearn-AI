@@ -4,6 +4,7 @@ import { YouTubeService, YouTubeSearchOptions } from './external/youtube.service
 import { KhanAcademyService } from './external/khan-academy.service';
 import { ContentModerationService, ModerationResult, QualityAssessment } from './content-moderation.service';
 import { ElasticsearchService, ContentSearchQuery, SearchResult } from './elasticsearch.service';
+import { CacheService } from '../cache/cache-service';
 import { logger } from '../utils/logger';
 import { ValidationError, NotFoundError } from '../middleware/error-handler';
 import {
@@ -15,7 +16,8 @@ import {
   ContentMetadata,
   QualityMetrics,
   DifficultyLevel,
-  AgeRating
+  AgeRating,
+  ContentFormat
 } from '@lusilearn/shared-types';
 
 export interface ContentAggregationOptions {
@@ -40,6 +42,7 @@ export class ContentService {
   private khanAcademyService: KhanAcademyService;
   private moderationService: ContentModerationService;
   private elasticsearchService: ElasticsearchService;
+  private aiServiceUrl: string;
 
   constructor(contentRepository: ContentRepository, contentReportRepository: ContentReportRepository) {
     this.contentRepository = contentRepository;
@@ -48,6 +51,7 @@ export class ContentService {
     this.khanAcademyService = new KhanAcademyService();
     this.moderationService = new ContentModerationService();
     this.elasticsearchService = new ElasticsearchService();
+    this.aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8001';
   }
 
   async searchContent(query: ContentQuery): Promise<{ items: ContentItem[], total: number }> {
@@ -781,8 +785,156 @@ export class ContentService {
     try {
       const { subject, limit = 10 } = options;
 
-      // For now, implement a simple recommendation algorithm
-      // In a real system, this would use ML models and user behavior analysis
+      logger.info('Getting AI-powered recommendations:', { userId, subject, limit });
+
+      // Check cache first
+      const cacheKey = `recommendations:${userId}:${subject || 'general'}:${limit}`;
+      const cachedRecommendations = await CacheService.getTempData<ContentRecommendation[]>(cacheKey);
+      
+      if (cachedRecommendations && cachedRecommendations.length > 0) {
+        logger.info('Returning cached recommendations:', { userId, count: cachedRecommendations.length });
+        return cachedRecommendations;
+      }
+
+      // Try to get AI-powered recommendations first
+      try {
+        const aiRecommendations = await this.getAIRecommendations(userId, subject, limit);
+        if (aiRecommendations && aiRecommendations.length > 0) {
+          logger.info('Successfully retrieved AI-powered recommendations:', {
+            userId,
+            count: aiRecommendations.length
+          });
+          
+          // Cache the recommendations for 5 minutes
+          await CacheService.setTempData(cacheKey, aiRecommendations, 300);
+          
+          return aiRecommendations;
+        }
+      } catch (aiError) {
+        logger.warn('AI service unavailable, falling back to algorithmic recommendations', { 
+          error: aiError,
+          userId 
+        });
+      }
+
+      // Fallback to algorithmic recommendations
+      const algorithmicRecommendations = await this.getAlgorithmicRecommendations(userId, options);
+      
+      // Cache algorithmic recommendations for 2 minutes
+      await CacheService.setTempData(cacheKey, algorithmicRecommendations, 120);
+      
+      return algorithmicRecommendations;
+    } catch (error) {
+      logger.error('Error getting content recommendations:', error);
+      throw error;
+    }
+  }
+
+  private async getAIRecommendations(userId: string, subject?: string, limit: number = 10): Promise<ContentRecommendation[]> {
+    try {
+      const requestBody = {
+        user_id: userId,
+        current_topic: subject || 'general',
+        education_level: 'college',
+        skill_level: 'intermediate',
+        learning_context: 'self_paced',
+        preferred_formats: ['video', 'article'],
+        max_duration: 60,
+        exclude_content: []
+      };
+
+      const response = await fetch(`${this.aiServiceUrl}/api/v1/recommendations/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI service responded with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.recommendations || !Array.isArray(data.recommendations)) {
+        throw new Error('Invalid response format from AI service');
+      }
+
+      // Convert AI service recommendations to our format
+      const recommendations: ContentRecommendation[] = [];
+      
+      for (const aiRec of data.recommendations) {
+        // Try to find the content in our database
+        let content: ContentItem | null = null;
+        
+        if (aiRec.content_id) {
+          content = await this.contentRepository.findById(aiRec.content_id);
+        }
+        
+        if (!content && aiRec.external_id) {
+          content = await this.contentRepository.findByExternalId(
+            aiRec.source as ContentSource || ContentSource.YOUTUBE,
+            aiRec.external_id
+          );
+        }
+
+        // If content not found, create a placeholder
+        if (!content) {
+          content = {
+            id: aiRec.content_id || `ai-${Date.now()}-${Math.random()}`,
+            title: aiRec.title || 'AI Recommended Content',
+            description: aiRec.description || 'Content recommended by our AI system',
+            url: aiRec.url || '',
+            source: aiRec.source as ContentSource || ContentSource.YOUTUBE,
+            externalId: aiRec.external_id || '',
+            metadata: {
+              subject: aiRec.subject || subject || 'general',
+              topics: aiRec.topics || [],
+              difficulty: aiRec.difficulty || DifficultyLevel.INTERMEDIATE,
+              duration: aiRec.duration || 0,
+              format: ContentFormat.VIDEO,
+              language: 'en',
+              learningObjectives: aiRec.learning_objectives || [],
+              prerequisites: aiRec.prerequisites || []
+            },
+            qualityMetrics: {
+              userRating: aiRec.quality_score || 0,
+              effectivenessScore: aiRec.effectiveness_score || 0,
+              completionRate: aiRec.completion_rate || 0,
+              reportCount: 0,
+              lastUpdated: new Date()
+            },
+            ageRating: AgeRating.ALL_AGES,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+
+        if (content) {
+          recommendations.push({
+            content,
+            relevanceScore: aiRec.relevance_score || 0.8,
+            reason: aiRec.reason || 'AI-powered recommendation based on your learning profile',
+            matchedSkills: aiRec.matched_skills || []
+          });
+        }
+      }
+
+      return recommendations;
+    } catch (error) {
+      logger.error('Error getting AI recommendations:', error);
+      throw error;
+    }
+  }
+
+  private async getAlgorithmicRecommendations(userId: string, options: {
+    subject?: string;
+    limit?: number;
+  } = {}): Promise<ContentRecommendation[]> {
+    try {
+      const { subject, limit = 10 } = options;
 
       const query: ContentQuery = {
         subject,
@@ -805,12 +957,12 @@ export class ContentService {
         relevanceScore += content.qualityMetrics.completionRate * 0.2;
 
         // Subject match bonus
-        if (subject && content.metadata.subject.toLowerCase().includes(subject.toLowerCase())) {
+        if (subject && content.metadata.subject && content.metadata.subject.toLowerCase().includes(subject.toLowerCase())) {
           relevanceScore += 0.3;
           reason = `Matches your interest in ${subject}`;
           matchedSkills.push(subject);
         } else {
-          reason = 'AI-powered recommendation based on quality metrics';
+          reason = 'Algorithmic recommendation based on quality metrics';
         }
 
         // Penalty for high report count
@@ -832,7 +984,7 @@ export class ContentService {
       // Sort by relevance score and return top results
       recommendations.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-      logger.info('Generated content recommendations:', {
+      logger.info('Generated algorithmic recommendations:', {
         userId,
         subject,
         recommendationsCount: recommendations.length,
@@ -841,7 +993,7 @@ export class ContentService {
 
       return recommendations.slice(0, limit);
     } catch (error) {
-      logger.error('Error getting content recommendations:', error);
+      logger.error('Error getting algorithmic recommendations:', error);
       throw error;
     }
   }

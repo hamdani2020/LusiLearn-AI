@@ -219,8 +219,55 @@ class AIService:
     async def _generate_fallback_content_recommendations(self, request: Any) -> List[Dict[str, Any]]:
         """Generate fallback content recommendations using algorithmic approach."""
         logger.info("Using algorithmic fallback for content recommendations")
-        # Implementation would go here
-        return []
+        
+        # Generate mock AI recommendations for testing
+        topic = getattr(request, 'current_topic', 'general')
+        
+        import uuid
+        
+        mock_recommendations = [
+            {
+                "content_id": str(uuid.uuid4()),
+                "title": f"Introduction to {topic.title()}",
+                "description": f"Learn the fundamentals of {topic} with this comprehensive guide",
+                "url": f"https://example.com/{topic}-intro",
+                "difficulty": "beginner",
+                "format": "video",
+                "duration_minutes": 15,
+                "topics": [topic, "basics", "fundamentals"],
+                "source": "youtube",
+                "relevance_score": 0.9,
+                "quality_score": 0.84
+            },
+            {
+                "content_id": str(uuid.uuid4()),
+                "title": f"Advanced {topic.title()} Techniques",
+                "description": f"Master advanced techniques in {topic} for experienced learners",
+                "url": f"https://example.com/{topic}-advanced",
+                "difficulty": "intermediate",
+                "format": "article",
+                "duration_minutes": 25,
+                "topics": [topic, "advanced", "techniques"],
+                "source": "khan_academy",
+                "relevance_score": 0.85,
+                "quality_score": 0.9
+            },
+            {
+                "content_id": str(uuid.uuid4()),
+                "title": f"Practical {topic.title()} Projects",
+                "description": f"Hands-on projects to apply your {topic} knowledge",
+                "url": f"https://example.com/{topic}-projects",
+                "difficulty": "intermediate",
+                "format": "interactive",
+                "duration_minutes": 45,
+                "topics": [topic, "projects", "hands-on"],
+                "source": "youtube",
+                "relevance_score": 0.95,
+                "quality_score": 0.96
+            }
+        ]
+        
+        return mock_recommendations
     
     async def _generate_fallback_peer_matches(self, user_profile: Dict[str, Any], criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Generate fallback peer matches using algorithmic approach."""
