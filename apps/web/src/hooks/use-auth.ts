@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api } from '@/lib/api'
+import { api, ApiResponse } from '@/lib/api'
 
 interface User {
   id: string
@@ -31,7 +31,7 @@ export function useAuth(): UseAuthReturn {
         return
       }
 
-      const response = await api.get<{ success: boolean; data: User }>('/api/v1/auth/me')
+      const response = await api.get<User>('/api/v1/auth/me')
       
       if (response.success && response.data) {
         setUser(response.data)
