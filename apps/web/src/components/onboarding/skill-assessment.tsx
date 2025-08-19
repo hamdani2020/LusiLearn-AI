@@ -336,15 +336,15 @@ export function SkillAssessment({ onNext, onPrevious }: SkillAssessmentProps) {
             <CardContent>
               <div className="text-center">
                 <div className="text-4xl font-bold text-blue-600 mb-2">
-                  {results.overallScore}%
+                  {results.overallScore || results.overall_score || 0}%
                 </div>
                 <div className="text-lg text-gray-600 mb-4">
-                  Recommended Level: <span className="font-semibold capitalize">{results.recommendedLevel}</span>
+                  Recommended Level: <span className="font-semibold capitalize">{results.recommendedLevel || results.recommended_level || 'beginner'}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
                     className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${results.overallScore}%` }}
+                    style={{ width: `${results.overallScore || results.overall_score || 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -352,14 +352,14 @@ export function SkillAssessment({ onNext, onPrevious }: SkillAssessmentProps) {
           </Card>
 
           {/* Strengths */}
-          {results.strengths.length > 0 && (
+          {(results.strengths?.length > 0) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-green-600">Your Strengths</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {results.strengths.map((strength, index) => (
+                  {(results.strengths || []).map((strength, index) => (
                     <span 
                       key={index}
                       className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
@@ -373,14 +373,14 @@ export function SkillAssessment({ onNext, onPrevious }: SkillAssessmentProps) {
           )}
 
           {/* Areas for Improvement */}
-          {results.areasForImprovement.length > 0 && (
+          {((results.areasForImprovement && results.areasForImprovement.length > 0) || (results.areas_for_improvement && results.areas_for_improvement.length > 0)) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-orange-600">Areas for Improvement</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {results.areasForImprovement.map((area, index) => (
+                  {(results.areasForImprovement || results.areas_for_improvement || []).map((area, index) => (
                     <span 
                       key={index}
                       className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
@@ -394,14 +394,14 @@ export function SkillAssessment({ onNext, onPrevious }: SkillAssessmentProps) {
           )}
 
           {/* Category Scores */}
-          {Object.keys(results.categoryScores).length > 0 && (
+          {Object.keys(results.categoryScores || results.category_scores || {}).length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Subject Breakdown</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(results.categoryScores).map(([category, score]) => (
+                  {Object.entries(results.categoryScores || results.category_scores || {}).map(([category, score]) => (
                     <div key={category} className="flex items-center justify-between">
                       <span className="capitalize font-medium">{category}</span>
                       <div className="flex items-center space-x-2">

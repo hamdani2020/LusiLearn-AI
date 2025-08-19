@@ -42,10 +42,14 @@ export interface SkillAssessmentQuestion {
 
 export interface SkillAssessmentResult {
   overallScore: number
+  overall_score?: number // API might return snake_case
   categoryScores: Record<string, number>
+  category_scores?: Record<string, number> // API might return snake_case
   recommendedLevel: 'beginner' | 'intermediate' | 'advanced'
+  recommended_level?: 'beginner' | 'intermediate' | 'advanced' // API might return snake_case
   strengths: string[]
   areasForImprovement: string[]
+  areas_for_improvement?: string[] // API might return snake_case
   confidence: number
 }
 
