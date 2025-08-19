@@ -6,6 +6,7 @@ export { useCollaboration } from './use-collaboration';
 export { useAdaptiveDifficulty } from './use-adaptive-difficulty';
 export { useSafetyModeration } from './use-safety-moderation';
 export { useMonitoring } from './use-monitoring';
+export { useAuth } from './use-auth';
 
 // Re-export existing hooks (excluding duplicates)
 export { 

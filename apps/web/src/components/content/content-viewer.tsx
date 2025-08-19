@@ -177,7 +177,7 @@ export function ContentViewer({
                   </div>
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 fill-current text-yellow-400" />
-                    <span>{content.qualityMetrics.userRating.toFixed(1)}</span>
+                    <span>{(content.qualityMetrics?.userRating || 0).toFixed(1)}</span>
                   </div>
                   <div>
                     Subject: {content.metadata.subject}
@@ -267,7 +267,7 @@ export function ContentViewer({
               <div>
                 <h3 className="font-medium mb-2">Topics Covered</h3>
                 <div className="flex flex-wrap gap-2">
-                  {content.metadata.topics.map((topic, index) => (
+                  {(content.metadata.topics || []).map((topic, index) => (
                     <Badge key={index} variant="secondary">
                       {topic}
                     </Badge>
@@ -311,13 +311,13 @@ export function ContentViewer({
                   <div>
                     <span className="text-muted-foreground">Average Rating:</span>
                     <span className="ml-2 font-medium">
-                      {content.qualityMetrics.userRating.toFixed(1)}/5
+                      {(content.qualityMetrics?.userRating || 0).toFixed(1)}/5
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Completion Rate:</span>
                     <span className="ml-2 font-medium">
-                      {Math.round(content.qualityMetrics.completionRate * 100)}%
+                      {Math.round((content.qualityMetrics?.completionRate || 0) * 100)}%
                     </span>
                   </div>
                 </div>
