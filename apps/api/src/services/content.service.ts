@@ -809,25 +809,30 @@ export class ContentService {
           await CacheService.setTempData(cacheKey, aiRecommendations, 300);
           
           return aiRecommendations;
+        } else {
+          logger.info('AI service returned empty results (no mock data fallback)', { 
+            userId 
+          });
+          
+          // Cache empty results for 2 minutes to prevent repeated calls
+          await CacheService.setTempData(cacheKey, [], 120);
+          
+          return [];
         }
       } catch (aiError) {
         logger.warn('AI service unavailable, falling back to algorithmic recommendations', { 
           error: aiError,
           userId 
         });
+        
+        // Fallback to algorithmic recommendations only on service errors
+        const algorithmicRecommendations = await this.getAlgorithmicRecommendations(userId, options);
+        
+        // Cache algorithmic recommendations for 2 minutes
+        await CacheService.setTempData(cacheKey, algorithmicRecommendations, 120);
+        
+        return algorithmicRecommendations;
       }
-
-      // Fallback to algorithmic recommendations
-      logger.info('AI service unavailable, falling back to algorithmic recommendations', { 
-        userId 
-      });
-      
-      const algorithmicRecommendations = await this.getAlgorithmicRecommendations(userId, options);
-      
-      // Cache algorithmic recommendations for 2 minutes
-      await CacheService.setTempData(cacheKey, algorithmicRecommendations, 120);
-      
-      return algorithmicRecommendations;
     } catch (error) {
       logger.error('Error getting content recommendations:', error);
       throw error;

@@ -81,12 +81,14 @@ export function ContentRecommendations({
       {items.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
-            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
-              No AI-powered recommendations available right now.
-              <br />
-              Our AI system is learning your preferences. Check back soon!
-            </p>
+                                  <Brain className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-center">
+                        No AI-powered recommendations available right now.
+                        <br />
+                        <span className="font-medium">Pure AI content only - no mock data.</span>
+                        <br />
+                        Check back when our AI service has new insights for you!
+                      </p>
           </CardContent>
         </Card>
       ) : (
