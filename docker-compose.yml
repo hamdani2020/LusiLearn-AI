@@ -93,6 +93,7 @@ services:
       - REDIS_PORT=${REDIS_PORT}
       - JWT_SECRET=${JWT_SECRET}
       - AI_SERVICE_URL=${AI_SERVICE_URL}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy

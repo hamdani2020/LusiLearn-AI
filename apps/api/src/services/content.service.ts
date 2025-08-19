@@ -879,7 +879,40 @@ export class ContentService {
           );
         }
 
-        // If content not found, create a placeholder
+        // If content not found, try to find real YouTube content based on AI recommendation
+        if (!content && aiRec.source === 'youtube') {
+          logger.info(`Attempting YouTube search for AI recommendation: ${aiRec.title}`);
+          try {
+            const youtubeService = new (await import('./external/youtube.service')).YouTubeService();
+            const searchQuery = aiRec.title || `${aiRec.subject || subject} tutorial`;
+            logger.info(`Searching YouTube with query: ${searchQuery}`);
+            
+            const youtubeVideos = await youtubeService.searchVideos({
+              query: searchQuery,
+              maxResults: 1,
+              order: 'relevance'
+            });
+            
+            logger.info(`YouTube search returned ${youtubeVideos.length} videos`);
+            
+            if (youtubeVideos.length > 0) {
+              const video = youtubeVideos[0];
+              logger.info(`Converting YouTube video: ${video.title}`);
+              const youtubeContent = await youtubeService.convertToContentItem(video);
+              content = {
+                ...youtubeContent,
+                id: aiRec.content_id || `ai-${Date.now()}-${Math.random()}`,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+              logger.info(`Successfully created YouTube content: ${content.title} - ${content.url}`);
+            }
+          } catch (error) {
+            logger.error(`Failed to search YouTube for AI recommendation: ${error}`);
+          }
+        }
+
+        // If still no content found, create a placeholder
         if (!content) {
           content = {
             id: aiRec.content_id || `ai-${Date.now()}-${Math.random()}`,
