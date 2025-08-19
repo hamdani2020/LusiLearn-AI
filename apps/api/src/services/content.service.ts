@@ -946,6 +946,44 @@ export class ContentService {
         }
 
         if (content) {
+          // Save the content to the database if it's new
+          if (!content.id.startsWith('ai-') || content.source === ContentSource.YOUTUBE) {
+            try {
+              // Check if content already exists by external ID
+              const existingContent = await this.contentRepository.findByExternalId(
+                content.source,
+                content.externalId
+              );
+              
+              if (!existingContent) {
+                // Create new content in database
+                const createRequest: CreateContentRequest = {
+                  source: content.source,
+                  externalId: content.externalId,
+                  url: content.url,
+                  title: content.title,
+                  description: content.description,
+                  thumbnailUrl: content.thumbnailUrl,
+                  metadata: content.metadata,
+                  qualityMetrics: content.qualityMetrics,
+                  ageRating: content.ageRating,
+                  embeddings: content.embeddings
+                };
+                
+                const savedContent = await this.contentRepository.create(createRequest);
+                content = savedContent;
+                logger.info(`Saved new AI content to database: ${content.id}`);
+              } else {
+                // Use existing content
+                content = existingContent;
+                logger.info(`Using existing content from database: ${content.id}`);
+              }
+            } catch (error) {
+              logger.error(`Failed to save AI content to database: ${error}`);
+              // Continue with in-memory content if database save fails
+            }
+          }
+          
           recommendations.push({
             content,
             relevanceScore: aiRec.relevance_score || 0.8,

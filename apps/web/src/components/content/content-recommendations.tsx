@@ -34,7 +34,7 @@ export function ContentRecommendations({
 
   // Group recommendations by type
   const aiRecommended = recommendations.filter(rec => 
-    rec.reason.includes('AI') || rec.reason.includes('personalized')
+    rec.reason.includes('AI') || rec.reason.includes('personalized') || rec.reason.includes('Algorithmic')
   )
   
   const trending = recommendations.filter(rec => 
