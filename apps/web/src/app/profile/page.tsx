@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MainNav } from '@/components/navigation/main-nav'
 import { 
   UserProfile, 
   AgeRange, 
@@ -278,6 +279,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <MainNav />
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Account Management</h1>

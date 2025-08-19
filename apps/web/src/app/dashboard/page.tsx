@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { MainNav } from '@/components/navigation/main-nav'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 import { LearningPathsOverview } from '@/components/dashboard/learning-paths-overview'
 import { ProgressAnalytics } from '@/components/dashboard/progress-analytics'
@@ -18,23 +19,8 @@ const MOCK_USER_ID = "user-123"
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Simple Navigation */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <div className="h-6 w-6 bg-primary rounded"></div>
-            <span className="font-bold">LusiLearn AI</span>
-          </Link>
-          <div className="ml-auto">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/">
-                <Home className="h-4 w-4 mr-2" />
-                Home
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Use the same MainNav as content discovery */}
+      <MainNav />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Dashboard Header */}

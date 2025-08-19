@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { MainNav } from '@/components/navigation/main-nav'
 import { useLearningPath } from '@/hooks/use-learning-data'
 import { 
   ArrowLeft, 
@@ -112,80 +113,83 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
   const nextObjective = path.objectives.find(obj => !obj.completed)
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <MainNav />
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+        </div>
 
-      {/* Path Overview */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
+        {/* Path Overview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-2xl">{path.subject}</CardTitle>
+                <div className="flex items-center space-x-2 mt-2">
+                  <Badge>{path.currentLevel}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {completedObjectives}/{totalObjectives} objectives completed
+                  </span>
+                </div>
+              </div>
+              {nextObjective && (
+                <Button className="flex items-center space-x-2">
+                  <Play className="h-4 w-4" />
+                  <span>Continue Learning</span>
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <CardTitle className="text-2xl">{path.subject}</CardTitle>
-              <div className="flex items-center space-x-2 mt-2">
-                <Badge>{path.currentLevel}</Badge>
-                <span className="text-sm text-muted-foreground">
-                  {completedObjectives}/{totalObjectives} objectives completed
-                </span>
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span>Overall Progress</span>
+                <span>{path.progress.overallProgress}%</span>
+              </div>
+              <Progress value={path.progress.overallProgress} className="h-3" />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <Target className="h-4 w-4 text-primary" />
+                <span>Current: {path.progress.currentMilestone}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-primary" />
+                <span>Est. completion: {new Date(path.progress.estimatedCompletion).toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span>Next: {nextObjective?.title || 'Complete!'}</span>
               </div>
             </div>
-            {nextObjective && (
-              <Button className="flex items-center space-x-2">
-                <Play className="h-4 w-4" />
-                <span>Continue Learning</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span>Overall Progress</span>
-              <span>{path.progress.overallProgress}%</span>
-            </div>
-            <Progress value={path.progress.overallProgress} className="h-3" />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-primary" />
-              <span>Current: {path.progress.currentMilestone}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <span>Est. completion: {new Date(path.progress.estimatedCompletion).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <span>Next: {nextObjective?.title || 'Complete!'}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Learning Objectives */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Learning Objectives</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {path.objectives.map((objective, index) => (
-            <ObjectiveCard 
-              key={objective.id} 
-              objective={objective} 
-              index={index}
-              isNext={!objective.completed && objective.id === nextObjective?.id}
-            />
-          ))}
-        </CardContent>
-      </Card>
+        {/* Learning Objectives */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Learning Objectives</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {path.objectives.map((objective, index) => (
+              <ObjectiveCard 
+                key={objective.id} 
+                objective={objective} 
+                index={index}
+                isNext={!objective.completed && objective.id === nextObjective?.id}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
