@@ -817,15 +817,17 @@ export class ContentService {
         });
       }
 
-      // Don't fall back to algorithmic recommendations - return empty array instead
-      logger.info('AI service unavailable, returning empty recommendations instead of algorithmic fallback', { 
+      // Fallback to algorithmic recommendations
+      logger.info('AI service unavailable, falling back to algorithmic recommendations', { 
         userId 
       });
       
-      // Cache empty recommendations for 1 minute to prevent repeated failed calls
-      await CacheService.setTempData(cacheKey, [], 60);
+      const algorithmicRecommendations = await this.getAlgorithmicRecommendations(userId, options);
       
-      return [];
+      // Cache algorithmic recommendations for 2 minutes
+      await CacheService.setTempData(cacheKey, algorithmicRecommendations, 120);
+      
+      return algorithmicRecommendations;
     } catch (error) {
       logger.error('Error getting content recommendations:', error);
       throw error;

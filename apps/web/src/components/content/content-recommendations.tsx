@@ -37,6 +37,10 @@ export function ContentRecommendations({
     rec.reason.includes('AI') || rec.reason.includes('personalized')
   )
   
+  const algorithmicRecommended = recommendations.filter(rec => 
+    rec.reason.includes('Algorithmic') || rec.reason.includes('Matches your interest')
+  )
+  
   const trending = recommendations.filter(rec => 
     rec.content.qualityMetrics.userRating >= 4.0 && 
     rec.content.qualityMetrics.completionRate >= 0.8
@@ -148,13 +152,22 @@ export function ContentRecommendations({
       
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="ai-recommended" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               AI Picks
               {aiRecommended.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
                   {aiRecommended.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="smart-picks" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Smart Picks
+              {algorithmicRecommended.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {algorithmicRecommended.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -183,6 +196,14 @@ export function ContentRecommendations({
               items={aiRecommended}
               title="AI-Powered Recommendations"
               description="Personalized content based on your learning patterns, goals, and preferences"
+            />
+          </TabsContent>
+
+          <TabsContent value="smart-picks" className="mt-6">
+            <RecommendationSection
+              items={algorithmicRecommended}
+              title="Smart Algorithmic Picks"
+              description="Content recommendations based on quality metrics, subject relevance, and community ratings"
             />
           </TabsContent>
 
