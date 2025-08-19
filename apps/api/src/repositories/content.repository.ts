@@ -654,14 +654,27 @@ export class ContentRepository {
       title: row.title,
       description: row.description,
       thumbnailUrl: row.thumbnail_url,
-      metadata: JSON.parse(row.metadata),
-      qualityMetrics: JSON.parse(row.quality_metrics),
+      metadata: this.safeJsonParse(row.metadata, {}),
+      qualityMetrics: this.safeJsonParse(row.quality_metrics, {}),
       ageRating: row.age_rating,
-      embeddings: row.embeddings ? JSON.parse(row.embeddings) : undefined,
+      embeddings: row.embeddings ? this.safeJsonParse(row.embeddings, undefined) : undefined,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };
+  }
+
+  private safeJsonParse(jsonString: any, defaultValue: any): any {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return defaultValue;
+    }
+    
+    try {
+      return JSON.parse(jsonString);
+    } catch (error) {
+      logger.warn(`Failed to parse JSON: ${jsonString}`, error);
+      return defaultValue;
+    }
   }
 
   private mapRowToBookmark(row: any): any {
@@ -669,7 +682,7 @@ export class ContentRepository {
       id: row.id,
       userId: row.user_id,
       contentId: row.content_id,
-      tags: JSON.parse(row.tags || '[]'),
+      tags: this.safeJsonParse(row.tags, []),
       notes: row.notes,
       createdAt: new Date(row.created_at)
     };
