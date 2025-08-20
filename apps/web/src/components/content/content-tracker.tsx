@@ -32,6 +32,11 @@ export function ContentTracker({
     interactionType: ContentInteraction['interactionType'],
     metadata?: any
   ) => {
+    // Only track interactions if we have a valid userId
+    if (!userId || userId.trim() === '' || userId === 'anonymous') {
+      return
+    }
+
     try {
       const interaction: Omit<ContentInteraction, 'id'> = {
         userId,
@@ -89,7 +94,7 @@ export function ContentTracker({
       const visibleHeight = Math.max(0, visibleBottom - visibleTop)
       
       const progress = Math.min(100, (visibleHeight / rect.height) * 100)
-      setScrollProgress(progress)
+      setScrollProgress(Math.round(progress))
 
       // Track progress milestones (25%, 50%, 75%, 100%)
       const milestones = [25, 50, 75, 100]
@@ -100,8 +105,7 @@ export function ContentTracker({
       if (currentMilestone) {
         lastProgressRef.current = currentMilestone
         trackInteraction('view', { 
-          progress: currentMilestone,
-          scrollProgress: progress 
+          progress: Math.round(currentMilestone)
         })
       }
     }
@@ -120,7 +124,7 @@ export function ContentTracker({
         if (duration > 1000) { // Only track if viewed for more than 1 second
           trackInteraction('view', { 
             duration: Math.round(duration / 1000),
-            progress: scrollProgress 
+            progress: Math.round(scrollProgress) 
           })
         }
       }

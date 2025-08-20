@@ -214,7 +214,7 @@ export default function ContentPage() {
       {/* Content Viewer */}
       <ContentViewer
         content={content!}
-        userId={user?.id || ''}
+        userId={user?.id || 'anonymous'}
         isBookmarked={isBookmarked}
         userRating={userRating}
         progress={progress}

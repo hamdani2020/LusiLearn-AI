@@ -86,6 +86,25 @@ export function ContentViewer({
   }
 
   const renderContentEmbed = () => {
+    // Handle YouTube content regardless of format
+    if (content.source === 'youtube') {
+      // Extract YouTube video ID from URL
+      const videoId = content.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1]
+      if (videoId) {
+        return (
+          <div className="aspect-video w-full">
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}`}
+              title={content.title}
+              className="w-full h-full rounded-lg"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            />
+          </div>
+        )
+      }
+    }
+
     switch (content.metadata.format) {
       case ContentFormat.VIDEO:
         if (content.source === 'youtube') {
@@ -171,17 +190,21 @@ export function ContentViewer({
                 <p className="text-muted-foreground">{content.description}</p>
                 
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatDuration(content.metadata.duration)}</span>
-                  </div>
+                  {content.metadata.duration && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>{formatDuration(content.metadata.duration)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 fill-current text-yellow-400" />
                     <span>{(content.qualityMetrics?.userRating || 0).toFixed(1)}</span>
                   </div>
-                  <div>
-                    Subject: {content.metadata.subject}
-                  </div>
+                  {content.metadata.subject && (
+                    <div>
+                      Subject: {content.metadata.subject}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -272,6 +295,9 @@ export function ContentViewer({
                       {topic}
                     </Badge>
                   ))}
+                  {(!content.metadata.topics || content.metadata.topics.length === 0) && (
+                    <span className="text-muted-foreground text-sm">No topics specified</span>
+                  )}
                 </div>
               </div>
 
