@@ -93,8 +93,8 @@ export function ContentRecommendations({
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((recommendation) => (
-            <div key={recommendation.content.id} className="relative">
+          {items.map((recommendation, index) => (
+            <div key={`${recommendation.content.id}-${index}`} className="relative">
               <ContentCard
                 content={recommendation.content}
                 isBookmarked={bookmarkedIds.includes(recommendation.content.id)}

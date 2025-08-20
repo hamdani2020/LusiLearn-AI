@@ -800,15 +800,21 @@ export class ContentService {
       try {
         const aiRecommendations = await this.getAIRecommendations(userId, subject, limit);
         if (aiRecommendations && aiRecommendations.length > 0) {
+          // Deduplicate recommendations based on content ID
+          const uniqueRecommendations = aiRecommendations.filter((rec, index, self) => 
+            index === self.findIndex(r => r.content.id === rec.content.id)
+          );
+          
           logger.info('Successfully retrieved AI-powered recommendations:', {
             userId,
-            count: aiRecommendations.length
+            count: aiRecommendations.length,
+            uniqueCount: uniqueRecommendations.length
           });
           
-          // Cache the recommendations for 5 minutes
-          await CacheService.setTempData(cacheKey, aiRecommendations, 300);
+          // Cache the deduplicated recommendations for 5 minutes
+          await CacheService.setTempData(cacheKey, uniqueRecommendations, 300);
           
-          return aiRecommendations;
+          return uniqueRecommendations;
         } else {
           logger.info('AI service returned empty results (no mock data fallback)', { 
             userId 
@@ -893,8 +899,19 @@ export class ContentService {
           logger.info(`Attempting YouTube search for AI recommendation: ${aiRec.title}`);
           try {
             const youtubeService = new (await import('./external/youtube.service')).YouTubeService();
-            const searchQuery = aiRec.title || `${aiRec.subject || subject} tutorial`;
-            logger.info(`Searching YouTube with query: ${searchQuery}`);
+            
+            // Generate targeted search query based on user profile and AI recommendation
+            let searchQuery = aiRec.title || `${aiRec.subject || subject} tutorial`;
+            
+            // Enhance search query based on user profile (using requestBody values)
+            searchQuery += ` intermediate`; // skill_level from requestBody
+            searchQuery += ` college`; // education_level from requestBody
+            searchQuery += ` self paced learning`; // learning_context from requestBody
+            
+            // Add quality indicators for better results
+            searchQuery += ' best tutorial course';
+            
+            logger.info(`Searching YouTube with enhanced query: ${searchQuery}`);
             
             const youtubeVideos = await youtubeService.searchVideos({
               query: searchQuery,

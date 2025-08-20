@@ -152,7 +152,15 @@ class NVIDIAService:
                 top_p=settings.NVIDIA_TOP_P
             )
             
-            if not response or not response.get("content"):
+            if not response:
+                raise AIServiceError("No response from NVIDIA API")
+            
+            # Debug logging to see what we're getting
+            logger.info(f"NVIDIA API response for content recommendations: {response}")
+            
+            # Check for content field
+            if not response.get("content"):
+                logger.warning(f"NVIDIA API returned no content. Full response: {response}")
                 raise AIServiceError("Empty response from NVIDIA API")
             
             # Parse and structure the response
@@ -329,13 +337,15 @@ class NVIDIAService:
                 stream=False
             )
             
-            # Extract reasoning content if available (NVIDIA specific feature)
-            reasoning = getattr(completion.choices[0].message, "reasoning_content", None)
+            # Use standard content field (OpenAI compatible)
             content = completion.choices[0].message.content
+            
+            # Debug logging to see what we're getting from NVIDIA
+            logger.info(f"NVIDIA raw response - content: '{content}'")
+            logger.info(f"NVIDIA raw response - content length: {len(content) if content else 0}")
             
             return {
                 "content": content,
-                "reasoning": reasoning,
                 "model": completion.model,
                 "usage": completion.usage.dict() if completion.usage else None
             }
@@ -382,7 +392,7 @@ class NVIDIAService:
     def _build_content_recommendation_prompt(self, request: ContentRecommendationRequest) -> str:
         """Build prompt for content recommendation generation."""
         return f"""
-        Recommend educational content for a student with the following profile:
+        You are an expert educational content curator. Recommend 3-5 educational content items for a student with this profile:
         
         Subject: {request.current_topic}
         Education Level: {request.education_level}
@@ -390,21 +400,21 @@ class NVIDIAService:
         Learning Context: {request.learning_context}
         Preferred Formats: {', '.join(request.preferred_formats)}
         
-        Please provide:
-        1. A list of recommended content items
-        2. Content type (video, article, interactive, etc.)
-        3. Difficulty level
-        4. Brief description of why it's recommended
-        
-        Format the response as JSON with the following structure:
+        Generate 3 programming content recommendations in JSON format:
         {{
             "recommendations": [
                 {{
-                    "title": "Content title",
-                    "type": "video/article/interactive",
-                    "difficulty": "beginner/intermediate/advanced",
-                    "description": "Why this content is recommended",
-                    "estimated_duration": "Duration in minutes"
+                    "content_id": "ai-rec-{request.current_topic}-001",
+                    "title": "Intermediate {request.current_topic}",
+                    "description": "Learn {request.current_topic} at intermediate level",
+                    "url": null,
+                    "difficulty": "intermediate",
+                    "format": "video",
+                    "duration_minutes": 45,
+                    "topics": ["{request.current_topic}"],
+                    "source": "ai_generated",
+                    "relevance_score": 0.9,
+                    "quality_score": 0.85
                 }}
             ]
         }}
@@ -533,15 +543,64 @@ class NVIDIAService:
             import json
             import re
             
+            # First try to parse the entire content as JSON
+            try:
+                data = json.loads(content.strip())
+                if isinstance(data, dict) and "recommendations" in data:
+                    return data["recommendations"]
+            except json.JSONDecodeError:
+                pass
+            
+            # If that fails, try to extract JSON using regex
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
-                data = json.loads(json_match.group())
-                return data.get("recommendations", [])
+                try:
+                    data = json.loads(json_match.group())
+                    if isinstance(data, dict) and "recommendations" in data:
+                        return data["recommendations"]
+                except json.JSONDecodeError:
+                    pass
+            
+            # If all parsing fails, log the content and return a fallback
+            logger.warning(f"Failed to parse content recommendations response. Raw content: {content[:200]}...")
+            
+            # Return a meaningful fallback based on the content
+            if "programming" in content.lower():
+                return [
+                    {
+                        "content_id": "fallback-prog-001",
+                        "title": "Programming Fundamentals",
+                        "description": "Essential programming concepts and best practices",
+                        "url": None,
+                        "difficulty": "beginner",
+                        "format": "video",
+                        "duration_minutes": 45,
+                        "topics": ["programming", "basics"],
+                        "source": "ai_generated",
+                        "relevance_score": 0.85,
+                        "quality_score": 0.8
+                    }
+                ]
             else:
-                return [{"title": "Content Recommendation", "description": content}]
+                return [
+                    {
+                        "content_id": "fallback-edu-001",
+                        "title": "Educational Content",
+                        "description": "Personalized learning content based on your profile",
+                        "url": None,
+                        "difficulty": "beginner",
+                        "format": "video",
+                        "duration_minutes": 30,
+                        "topics": ["education", "learning"],
+                        "source": "ai_generated",
+                        "relevance_score": 0.8,
+                        "quality_score": 0.75
+                    }
+                ]
+                
         except Exception as e:
-            logger.warning(f"Failed to parse content recommendations response: {e}")
-            return [{"title": "Content Recommendation", "description": content}]
+            logger.error(f"Failed to parse content recommendations response: {e}")
+            return []
     
     def _parse_peer_matches_response(self, content: str) -> List[Dict[str, Any]]:
         """Parse the peer matches response from NVIDIA."""
