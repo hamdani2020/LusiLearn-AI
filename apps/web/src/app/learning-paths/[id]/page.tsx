@@ -108,9 +108,9 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
     )
   }
 
-  const completedObjectives = path.objectives.filter(obj => obj.completed).length
-  const totalObjectives = path.objectives.length
-  const nextObjective = path.objectives.find(obj => !obj.completed)
+  const completedObjectives = (path.objectives || []).filter((obj: any) => obj.completed).length
+  const totalObjectives = path.objectives?.length || 0
+  const nextObjective = (path.objectives || []).find((obj: any) => !obj.completed)
 
   return (
     <div className="min-h-screen bg-background">
@@ -159,15 +159,15 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <Target className="h-4 w-4 text-primary" />
-                <span>Current: {path.progress.currentMilestone}</span>
+                <span>Current: {path.progress?.currentMilestone || 'Getting started'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <span>Est. completion: {new Date(path.progress.estimatedCompletion).toLocaleDateString()}</span>
+                <span>Est. completion: {path.progress?.estimatedCompletion ? new Date(path.progress.estimatedCompletion).toLocaleDateString() : 'TBD'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <BookOpen className="h-4 w-4 text-primary" />
-                <span>Next: {nextObjective?.title || 'Complete!'}</span>
+                <span>Next: {nextObjective?.title || 'No objectives yet'}</span>
               </div>
             </div>
           </CardContent>
@@ -179,14 +179,29 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
             <CardTitle>Learning Objectives</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {path.objectives.map((objective, index) => (
-              <ObjectiveCard 
-                key={objective.id} 
-                objective={objective} 
-                index={index}
-                isNext={!objective.completed && objective.id === nextObjective?.id}
-              />
-            ))}
+            {(path.objectives || []).length > 0 ? (
+              (path.objectives || []).map((objective: any, index: number) => (
+                <ObjectiveCard 
+                  key={objective.id} 
+                  objective={objective} 
+                  index={index}
+                  isNext={!objective.completed && objective.id === nextObjective?.id}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground mb-4">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Learning Objectives Yet</h3>
+                  <p className="text-sm">
+                    Your learning path is being generated. This may take a few moments.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

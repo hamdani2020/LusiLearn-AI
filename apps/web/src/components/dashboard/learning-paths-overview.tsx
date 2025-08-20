@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useLearningPaths } from '@/hooks/use-learning-data'
-import { BookOpen, Clock, Play, Plus } from 'lucide-react'
+import { BookOpen, Clock, Play } from 'lucide-react'
 import Link from 'next/link'
+import { CreateLearningPathModal } from './create-learning-path-modal'
 
 interface LearningPathsOverviewProps {
   userId: string
 }
 
 export function LearningPathsOverview({ userId }: LearningPathsOverviewProps) {
-  const { data: learningPathsData, isLoading, error } = useLearningPaths(userId)
+  const { data: learningPathsData, isLoading, error, refetch } = useLearningPaths(userId)
 
   const paths = learningPathsData?.data || []
 
@@ -36,10 +37,7 @@ export function LearningPathsOverview({ userId }: LearningPathsOverviewProps) {
           <BookOpen className="h-5 w-5" />
           <span>Your Learning Paths</span>
         </CardTitle>
-        <Button size="sm" className="flex items-center space-x-1">
-          <Plus className="h-4 w-4" />
-          <span>New Path</span>
-        </Button>
+        <CreateLearningPathModal onSuccess={refetch} />
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
@@ -57,7 +55,7 @@ export function LearningPathsOverview({ userId }: LearningPathsOverviewProps) {
             <p className="text-muted-foreground mb-4">
               Create your first learning path to get started with personalized learning.
             </p>
-            <Button>Create Learning Path</Button>
+            <CreateLearningPathModal onSuccess={refetch} />
           </div>
         ) : (
           paths.map((path) => (
