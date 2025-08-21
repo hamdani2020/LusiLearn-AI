@@ -4,6 +4,49 @@ import { api, ApiResponse, ApiError } from './api';
 // TYPE DEFINITIONS
 // ============================================================================
 
+// Goals Types
+export interface Goal {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  category: 'academic' | 'career' | 'personal' | 'skill';
+  targetDate: string;
+  progress: number;
+  status: 'active' | 'completed' | 'overdue';
+  milestones: GoalMilestone[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalMilestone {
+  id: string;
+  title: string;
+  completed: boolean;
+  dueDate: string;
+}
+
+export interface CreateGoalRequest {
+  title: string;
+  description: string;
+  category: 'academic' | 'career' | 'personal' | 'skill';
+  targetDate: string;
+  milestones?: {
+    title: string;
+    dueDate: string;
+  }[];
+}
+
+export interface UpdateGoalRequest {
+  title?: string;
+  description?: string;
+  category?: 'academic' | 'career' | 'personal' | 'skill';
+  targetDate?: string;
+  progress?: number;
+  status?: 'active' | 'completed' | 'overdue';
+  milestones?: GoalMilestone[];
+}
+
 // Learning Path Types
 export interface LearningPath {
   id: string;
@@ -231,6 +274,31 @@ export interface ModerationStatus {
   lastReview: string;
   nextReview?: string;
 }
+
+// ============================================================================
+// GOALS API METHODS
+// ============================================================================
+
+export const goalsAPI = {
+  // Get all goals for the current user
+  getGoals: () => api.get<{ data: Goal[] }>('/api/v1/goals'),
+
+  // Get a specific goal by ID
+  getGoal: (goalId: string) => api.get<{ data: Goal }>(`/api/v1/goals/${goalId}`),
+
+  // Create a new goal
+  createGoal: (data: CreateGoalRequest) => api.post<{ data: Goal }>('/api/v1/goals', data),
+
+  // Update a goal
+  updateGoal: (goalId: string, data: UpdateGoalRequest) => api.put<{ data: Goal }>(`/api/v1/goals/${goalId}`, data),
+
+  // Delete a goal
+  deleteGoal: (goalId: string) => api.delete(`/api/v1/goals/${goalId}`),
+
+  // Mark a milestone as completed
+  completeMilestone: (goalId: string, milestoneId: string) => 
+    api.post(`/api/v1/goals/${goalId}/milestones/${milestoneId}/complete`),
+};
 
 // ============================================================================
 // LEARNING PATH API METHODS

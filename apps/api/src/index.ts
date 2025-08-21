@@ -16,6 +16,7 @@ import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { createContentRoutes } from './routes/content.routes';
 import { createOnboardingRoutes } from './routes/onboarding.routes';
+import { createGoalsRoutes } from './routes/goals.routes';
 import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
 import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
 import { HealthCheckService } from './services/health-check.service';
@@ -215,6 +216,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 30 // Limited for onboarding endpoints
+    }
+  },
+  {
+    path: '/goals',
+    router: createGoalsRoutes(),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 40 // Moderate limit for goal operations
     }
   }
 ];

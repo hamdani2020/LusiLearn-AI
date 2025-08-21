@@ -4,3 +4,4 @@ export { learningPathRouter, initializeLearningPathRoutes } from './learning-pat
 export { default as createCollaborationRoutes } from './collaboration.routes';
 export { createContentRoutes } from './content.routes';
 export { createOnboardingRoutes } from './onboarding.routes';
+export { createGoalsRoutes } from './goals.routes';

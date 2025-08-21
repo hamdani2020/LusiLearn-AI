@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, endpoints } from '@/lib/api'
+import { goalsAPI, Goal, CreateGoalRequest, UpdateGoalRequest } from '@/lib/api-extended'
 
 // Types for learning data
 export interface LearningPath {
@@ -117,5 +118,79 @@ export function useContentSearch(query: string, filters?: any) {
         },
         enabled: !!query && query.length > 2,
         staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+}
+
+// Hook for fetching user's goals
+export function useGoals() {
+    return useQuery({
+        queryKey: ['goals'],
+        queryFn: () => goalsAPI.getGoals(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+}
+
+// Hook for fetching a specific goal
+export function useGoal(goalId: string) {
+    return useQuery({
+        queryKey: ['goal', goalId],
+        queryFn: () => goalsAPI.getGoal(goalId),
+        enabled: !!goalId,
+    })
+}
+
+// Hook for creating a new goal
+export function useCreateGoal() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (data: CreateGoalRequest) => goalsAPI.createGoal(data),
+        onSuccess: () => {
+            // Invalidate and refetch goals
+            queryClient.invalidateQueries({ queryKey: ['goals'] })
+        },
+    })
+}
+
+// Hook for updating a goal
+export function useUpdateGoal() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: ({ goalId, data }: { goalId: string; data: UpdateGoalRequest }) =>
+            goalsAPI.updateGoal(goalId, data),
+        onSuccess: (_data, { goalId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['goals'] })
+            queryClient.invalidateQueries({ queryKey: ['goal', goalId] })
+        },
+    })
+}
+
+// Hook for deleting a goal
+export function useDeleteGoal() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (goalId: string) => goalsAPI.deleteGoal(goalId),
+        onSuccess: () => {
+            // Invalidate and refetch goals
+            queryClient.invalidateQueries({ queryKey: ['goals'] })
+        },
+    })
+}
+
+// Hook for completing a milestone
+export function useCompleteMilestone() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: ({ goalId, milestoneId }: { goalId: string; milestoneId: string }) =>
+            goalsAPI.completeMilestone(goalId, milestoneId),
+        onSuccess: (_data, { goalId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['goals'] })
+            queryClient.invalidateQueries({ queryKey: ['goal', goalId] })
+        },
     })
 }
