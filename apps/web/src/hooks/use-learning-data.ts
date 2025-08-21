@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, endpoints } from '@/lib/api'
-import { goalsAPI, Goal, CreateGoalRequest, UpdateGoalRequest } from '@/lib/api-extended'
+import { goalsAPI, progressAPI, Goal, CreateGoalRequest, UpdateGoalRequest, LearningSession, LearningAnalytics, ProgressVisualization, Achievement, LearningStreak, SkillProgress, ProgressDashboard } from '@/lib/api-extended'
 
 // Types for learning data
 export interface LearningPath {
@@ -192,5 +192,94 @@ export function useCompleteMilestone() {
             queryClient.invalidateQueries({ queryKey: ['goals'] })
             queryClient.invalidateQueries({ queryKey: ['goal', goalId] })
         },
+    })
+}
+
+// ============================================================================
+// PROGRESS TRACKING HOOKS
+// ============================================================================
+
+// Hook for updating learning session progress
+export function useUpdateLearningProgress() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (data: LearningSession) => progressAPI.updateProgress(data),
+        onSuccess: () => {
+            // Invalidate progress-related queries
+            queryClient.invalidateQueries({ queryKey: ['progressDashboard'] })
+            queryClient.invalidateQueries({ queryKey: ['analytics'] })
+            queryClient.invalidateQueries({ queryKey: ['streaks'] })
+        },
+    })
+}
+
+// Hook for fetching learning analytics
+export function useLearningAnalytics(timeframe: 'daily' | 'weekly' | 'monthly' | 'yearly') {
+    return useQuery({
+        queryKey: ['analytics', timeframe],
+        queryFn: () => progressAPI.getAnalytics(timeframe),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+}
+
+// Hook for fetching progress visualization for a learning path
+export function useProgressVisualization(pathId: string) {
+    return useQuery({
+        queryKey: ['progressVisualization', pathId],
+        queryFn: () => progressAPI.getVisualization(pathId),
+        enabled: !!pathId,
+    })
+}
+
+// Hook for tracking milestone completion
+export function useTrackMilestone() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: ({ pathId, milestoneId }: { pathId: string; milestoneId: string }) =>
+            progressAPI.trackMilestone(pathId, milestoneId),
+        onSuccess: (_data, { pathId }) => {
+            // Invalidate related queries
+            queryClient.invalidateQueries({ queryKey: ['learningPath', pathId] })
+            queryClient.invalidateQueries({ queryKey: ['progressVisualization', pathId] })
+            queryClient.invalidateQueries({ queryKey: ['achievements'] })
+        },
+    })
+}
+
+// Hook for fetching user achievements
+export function useAchievements(type?: string) {
+    return useQuery({
+        queryKey: ['achievements', type],
+        queryFn: () => progressAPI.getAchievements(type),
+        staleTime: 10 * 60 * 1000, // 10 minutes
+    })
+}
+
+// Hook for fetching progress dashboard data
+export function useProgressDashboard() {
+    return useQuery({
+        queryKey: ['progressDashboard'],
+        queryFn: () => progressAPI.getDashboard(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+}
+
+// Hook for fetching learning streaks
+export function useLearningStreaks() {
+    return useQuery({
+        queryKey: ['streaks'],
+        queryFn: () => progressAPI.getStreaks(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+}
+
+// Hook for fetching skill progress
+export function useSkillProgress() {
+    return useQuery({
+        queryKey: ['skillProgress'],
+        queryFn: () => progressAPI.getSkills(),
+        staleTime: 10 * 60 * 1000, // 10 minutes
     })
 }

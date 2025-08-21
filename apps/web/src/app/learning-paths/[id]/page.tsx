@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { MainNav } from '@/components/navigation/main-nav'
 import { useLearningPath } from '@/hooks/use-learning-data'
+import { ProgressTracking } from '@/components/learning/progress-tracking'
 import { 
   ArrowLeft, 
   Play, 
@@ -203,6 +204,25 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
             )}
           </CardContent>
         </Card>
+
+        {/* Progress Tracking */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProgressTracking 
+                pathId={path.id}
+                onMilestoneComplete={(milestoneId) => {
+                  console.log('Milestone completed:', milestoneId)
+                  // Refresh the learning path data
+                  window.location.reload()
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

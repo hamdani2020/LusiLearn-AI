@@ -47,6 +47,83 @@ export interface UpdateGoalRequest {
   milestones?: GoalMilestone[];
 }
 
+// Progress Tracking Types
+export interface LearningSession {
+  userId: string;
+  sessionId: string;
+  contentId: string;
+  duration: number;
+  comprehensionScore: number;
+  strugglingConcepts: string[];
+  masteredConcepts: string[];
+  timestamp: string;
+}
+
+export interface LearningAnalytics {
+  totalTimeSpent: number;
+  averageScore: number;
+  completedSessions: number;
+  currentStreak: number;
+  longestStreak: number;
+  subjects: SubjectProgress[];
+}
+
+export interface SubjectProgress {
+  subject: string;
+  timeSpent: number;
+  averageScore: number;
+  sessionsCompleted: number;
+}
+
+export interface ProgressVisualization {
+  pathId: string;
+  milestones: MilestoneProgress[];
+  overallProgress: number;
+  estimatedCompletion: string;
+}
+
+export interface MilestoneProgress {
+  milestoneId: string;
+  title: string;
+  completed: boolean;
+  completionDate?: string;
+  score?: number;
+}
+
+export interface Achievement {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  description: string;
+  points: number;
+  earnedAt: string;
+  icon?: string;
+}
+
+export interface LearningStreak {
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate: string;
+  streakStartDate: string;
+}
+
+export interface SkillProgress {
+  skill: string;
+  level: number;
+  progress: number;
+  sessionsCompleted: number;
+  lastPracticed: string;
+}
+
+export interface ProgressDashboard {
+  weeklyAnalytics: LearningAnalytics;
+  monthlyAnalytics: LearningAnalytics;
+  recentAchievements: Achievement[];
+  totalPoints: number;
+  totalAchievements: number;
+}
+
 // Learning Path Types
 export interface LearningPath {
   id: string;
@@ -298,6 +375,42 @@ export const goalsAPI = {
   // Mark a milestone as completed
   completeMilestone: (goalId: string, milestoneId: string) => 
     api.post(`/api/v1/goals/${goalId}/milestones/${milestoneId}/complete`),
+};
+
+// ============================================================================
+// PROGRESS TRACKING API METHODS
+// ============================================================================
+
+export const progressAPI = {
+  // Update progress based on learning session data
+  updateProgress: (data: LearningSession) => api.post<{ data: any }>('/api/v1/progress/update', data),
+
+  // Get learning analytics for a specific timeframe
+  getAnalytics: (timeframe: 'daily' | 'weekly' | 'monthly' | 'yearly') => 
+    api.get<{ data: LearningAnalytics }>(`/api/v1/progress/analytics/${timeframe}`),
+
+  // Get progress visualization for a learning path
+  getVisualization: (pathId: string) => 
+    api.get<{ data: ProgressVisualization }>(`/api/v1/progress/visualization/${pathId}`),
+
+  // Track milestone completion
+  trackMilestone: (pathId: string, milestoneId: string) => 
+    api.post<{ data: any }>(`/api/v1/progress/milestone/${pathId}/${milestoneId}`),
+
+  // Get user achievements
+  getAchievements: (type?: string) => {
+    const url = type ? `/api/v1/progress/achievements?type=${type}` : '/api/v1/progress/achievements';
+    return api.get<{ data: Achievement[] }>(url);
+  },
+
+  // Get comprehensive progress dashboard data
+  getDashboard: () => api.get<{ data: ProgressDashboard }>('/api/v1/progress/dashboard'),
+
+  // Get user learning streaks
+  getStreaks: () => api.get<{ data: LearningStreak }>('/api/v1/progress/streaks'),
+
+  // Get user skill progress
+  getSkills: () => api.get<{ data: SkillProgress[] }>('/api/v1/progress/skills'),
 };
 
 // ============================================================================

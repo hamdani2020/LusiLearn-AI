@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { BarChart, LineChart, ChartContainer } from '@/components/ui/chart'
 import { TrendingUp, Clock, Target, Award } from 'lucide-react'
-import { useProgressAnalytics, useProgressDashboard } from '@/hooks/use-progress-data'
+import { useLearningAnalytics, useProgressDashboard } from '@/hooks/use-learning-data'
 
 interface ProgressAnalyticsProps {
   userId: string
@@ -25,8 +25,8 @@ interface LearningInsight {
 }
 
 export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
-  const { data: weeklyData } = useProgressAnalytics('weekly')
-  const { data: monthlyData } = useProgressAnalytics('monthly')
+  const { data: weeklyData } = useLearningAnalytics('weekly')
+  const { data: monthlyData } = useLearningAnalytics('monthly')
   const { data: dashboardData } = useProgressDashboard()
 
   // Extract data with fallbacks
@@ -35,7 +35,7 @@ export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
   const dashboard = dashboardData?.data
 
   const analyticsData = {
-    weeklyProgress: weeklyAnalytics?.dailyHours || [
+    weeklyProgress: (weeklyAnalytics as any)?.subjects?.map((s: any) => ({ name: s.subject, value: s.averageScore })) || [
       { name: 'Mon', value: 0 },
       { name: 'Tue', value: 0 },
       { name: 'Wed', value: 0 },
@@ -44,21 +44,21 @@ export function ProgressAnalytics({ userId }: ProgressAnalyticsProps) {
       { name: 'Sat', value: 0 },
       { name: 'Sun', value: 0 }
     ],
-    subjectProgress: (weeklyAnalytics?.subjectProgress || []) as SubjectProgress[],
+    subjectProgress: ((weeklyAnalytics as any)?.subjects?.map((s: any) => ({ name: s.subject, value: s.averageScore })) || []) as SubjectProgress[],
     monthlyStats: {
-      totalHours: monthlyAnalytics?.totalHours || 0,
-      completedLessons: monthlyAnalytics?.completedSessions || 0,
-      averageScore: monthlyAnalytics?.averageScore || 0,
-      streak: dashboard?.weeklyAnalytics?.currentStreak || 0
+      totalHours: Math.round(((monthlyAnalytics as any)?.totalTimeSpent || 0) / 60),
+      completedLessons: (monthlyAnalytics as any)?.completedSessions || 0,
+      averageScore: (monthlyAnalytics as any)?.averageScore || 0,
+      streak: (dashboard as any)?.weeklyAnalytics?.currentStreak || 0
     },
-    learningInsights: (dashboard?.insights || [
+    learningInsights: [
       {
         type: 'info',
         title: 'Start Your Learning Journey',
         description: 'Complete your first learning session to see personalized insights',
         icon: TrendingUp
       }
-    ]) as LearningInsight[]
+    ] as LearningInsight[]
   }
 
   return (
