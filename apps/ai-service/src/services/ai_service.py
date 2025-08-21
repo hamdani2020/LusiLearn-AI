@@ -211,10 +211,90 @@ class AIService:
             return await self._evaluate_fallback_skill_assessment(request)
     
     async def _generate_fallback_learning_path(self, request: Any) -> Dict[str, Any]:
-        """Generate fallback learning path using algorithmic approach."""
+        """Generate fallback learning path using algorithmic approach with user profile data."""
         logger.info("Using algorithmic fallback for learning path generation")
-        # Implementation would go here
-        return {"objectives": [], "difficulty_progression": "beginner", "total_estimated_time": "60"}
+        
+        # Extract user profile data
+        user_id = getattr(request, 'user_id', 'default_user')
+        subject = getattr(request, 'subject', 'programming')
+        skill_level = getattr(request, 'skill_level', 'beginner')
+        education_level = getattr(request, 'education_level', 'college')
+        time_commitment = getattr(request, 'time_commitment', 5)
+        learning_goals = getattr(request, 'learning_goals', [])
+        
+        # Generate objectives based on subject and skill level
+        objectives = self._generate_objectives_for_subject(subject, skill_level, education_level)
+        
+        # Create milestones
+        milestones = self._create_milestones_from_objectives(objectives)
+        
+        # Calculate time estimates
+        total_hours = len(objectives) * 2  # 2 hours per objective
+        
+        return {
+            "path_id": f"path_{user_id}_{subject}_{int(datetime.now().timestamp())}",
+            "user_id": user_id,
+            "subject": subject,
+            "objectives": objectives,
+            "milestones": milestones,
+            "total_estimated_hours": total_hours,
+            "difficulty_progression": f"{skill_level} -> intermediate -> advanced",
+            "created_at": datetime.now().isoformat(),
+            "source": "algorithm_generated"
+        }
+    
+    def _generate_objectives_for_subject(self, subject: str, skill_level: str, education_level: str) -> List[Dict[str, Any]]:
+        """Generate learning objectives based on subject and skill level."""
+        objectives = []
+        
+        if subject.lower() == 'programming':
+            if skill_level == 'beginner':
+                objectives = [
+                    {"id": "obj-1", "title": "Programming Fundamentals", "description": "Learn basic programming concepts and syntax", "difficulty": "beginner", "estimated_hours": 2},
+                    {"id": "obj-2", "title": "Variables and Data Types", "description": "Understand variables, data types, and basic operations", "difficulty": "beginner", "estimated_hours": 2},
+                    {"id": "obj-3", "title": "Control Structures", "description": "Master if statements, loops, and conditional logic", "difficulty": "beginner", "estimated_hours": 3},
+                    {"id": "obj-4", "title": "Functions and Methods", "description": "Learn to create and use functions", "difficulty": "intermediate", "estimated_hours": 3}
+                ]
+            elif skill_level == 'intermediate':
+                objectives = [
+                    {"id": "obj-1", "title": "Data Structures", "description": "Master arrays, lists, and basic data structures", "difficulty": "intermediate", "estimated_hours": 4},
+                    {"id": "obj-2", "title": "Object-Oriented Programming", "description": "Learn classes, objects, and inheritance", "difficulty": "intermediate", "estimated_hours": 4},
+                    {"id": "obj-3", "title": "Error Handling", "description": "Implement robust error handling and debugging", "difficulty": "intermediate", "estimated_hours": 3},
+                    {"id": "obj-4", "title": "File I/O and APIs", "description": "Work with files and external APIs", "difficulty": "intermediate", "estimated_hours": 3}
+                ]
+            else:  # advanced
+                objectives = [
+                    {"id": "obj-1", "title": "Advanced Algorithms", "description": "Implement complex algorithms and optimization", "difficulty": "advanced", "estimated_hours": 5},
+                    {"id": "obj-2", "title": "Design Patterns", "description": "Master software design patterns", "difficulty": "advanced", "estimated_hours": 4},
+                    {"id": "obj-3", "title": "System Architecture", "description": "Design scalable system architectures", "difficulty": "advanced", "estimated_hours": 5},
+                    {"id": "obj-4", "title": "Performance Optimization", "description": "Optimize code performance and efficiency", "difficulty": "advanced", "estimated_hours": 4}
+                ]
+        else:
+            # Generic objectives for other subjects
+            objectives = [
+                {"id": "obj-1", "title": f"{subject.title()} Fundamentals", "description": f"Learn basic {subject} concepts", "difficulty": skill_level, "estimated_hours": 2},
+                {"id": "obj-2", "title": f"Intermediate {subject.title()}", "description": f"Master intermediate {subject} concepts", "difficulty": "intermediate", "estimated_hours": 3},
+                {"id": "obj-3", "title": f"Advanced {subject.title()}", "description": f"Explore advanced {subject} topics", "difficulty": "advanced", "estimated_hours": 4}
+            ]
+        
+        return objectives
+    
+    def _create_milestones_from_objectives(self, objectives: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Create milestones from learning objectives."""
+        milestones = []
+        
+        for i, objective in enumerate(objectives):
+            milestone = {
+                "id": f"milestone-{objective['id']}",
+                "title": objective['title'],
+                "description": objective['description'],
+                "completed": False,
+                "order": i + 1,
+                "estimated_hours": objective.get('estimated_hours', 2)
+            }
+            milestones.append(milestone)
+        
+        return milestones
     
     async def _generate_fallback_content_recommendations(self, request: Any) -> List[Dict[str, Any]]:
         """Generate intelligent fallback content recommendations when AI providers fail."""
