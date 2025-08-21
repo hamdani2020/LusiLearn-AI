@@ -1,6 +1,5 @@
 "use client"
 
-import { use } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,11 +18,11 @@ import {
 import Link from 'next/link'
 
 interface LearningPathPageProps {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 export default function LearningPathPage({ params }: LearningPathPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const { data: pathData, isLoading, error } = useLearningPath(id)
 
   // Mock data for demonstration
