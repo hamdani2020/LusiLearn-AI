@@ -1,28 +1,40 @@
 import { ContentService } from '../content.service';
-import { ContentRepository } from '../../repositories/content.repository';
+import { ContentRepository, CreateContentRequest } from '../../repositories/content.repository';
+import { ContentReportRepository, CreateReportRequest } from '../../repositories/content-report.repository';
 import { YouTubeService } from '../external/youtube.service';
 import { KhanAcademyService } from '../external/khan-academy.service';
+import { ContentModerationService } from '../content-moderation.service';
 import { 
   ContentSource, 
   ContentFormat, 
   DifficultyLevel, 
   AgeRating,
-  ContentQuery 
+  ContentQuery,
+  ContentItem,
+  ValidationResult
 } from '@lusilearn/shared-types';
 
 // Mock the dependencies
 jest.mock('../../repositories/content.repository');
+jest.mock('../../repositories/content-report.repository');
 jest.mock('../external/youtube.service');
 jest.mock('../external/khan-academy.service');
+jest.mock('../content-moderation.service');
+jest.mock('../elasticsearch.service');
 jest.mock('../../utils/logger');
+
+// Mock fetch for AI service calls
+global.fetch = jest.fn();
 
 describe('ContentService', () => {
   let contentService: ContentService;
   let mockContentRepository: jest.Mocked<ContentRepository>;
+  let mockContentReportRepository: jest.Mocked<ContentReportRepository>;
   let mockYouTubeService: jest.Mocked<YouTubeService>;
   let mockKhanAcademyService: jest.Mocked<KhanAcademyService>;
+  let mockModerationService: jest.Mocked<ContentModerationService>;
 
-  const mockContentItem = {
+  const mockContentItem: ContentItem = {
     id: 'test-content-id',
     source: ContentSource.YOUTUBE,
     externalId: 'test-video-id',
@@ -55,15 +67,27 @@ describe('ContentService', () => {
   beforeEach(() => {
     // Create mocked instances
     mockContentRepository = new ContentRepository({} as any) as jest.Mocked<ContentRepository>;
+    mockContentReportRepository = new ContentReportRepository({} as any) as jest.Mocked<ContentReportRepository>;
     mockYouTubeService = new YouTubeService() as jest.Mocked<YouTubeService>;
     mockKhanAcademyService = new KhanAcademyService() as jest.Mocked<KhanAcademyService>;
+    mockModerationService = new ContentModerationService() as jest.Mocked<ContentModerationService>;
 
     // Create service instance with mocked dependencies
-    contentService = new ContentService(mockContentRepository);
+    contentService = new ContentService(mockContentRepository, mockContentReportRepository);
     
     // Replace the private services with mocks
     (contentService as any).youtubeService = mockYouTubeService;
     (contentService as any).khanAcademyService = mockKhanAcademyService;
+    (contentService as any).moderationService = mockModerationService;
+    (contentService as any).elasticsearchService = {
+      searchContent: jest.fn(),
+      getSuggestions: jest.fn(),
+      getRelatedContent: jest.fn(),
+      indexContent: jest.fn(),
+      bulkIndexContent: jest.fn(),
+      updateContent: jest.fn(),
+      deleteContent: jest.fn(),
+    };
 
     // Clear all mocks
     jest.clearAllMocks();
@@ -386,6 +410,321 @@ describe('ContentService', () => {
       // Assert
       expect(result).toEqual(sourceContent);
       expect(mockContentRepository.getBySource).toHaveBeenCalledWith(source, limit);
+    });
+  });
+
+  describe('moderateContent', () => {
+    it('should moderate content and update based on results', async () => {
+      // Arrange
+      const contentId = 'test-content-id';
+      const moderationResult = {
+        isAppropriate: false,
+        confidence: 0.9,
+        flags: ['inappropriate_language'],
+        suggestedAgeRating: AgeRating.TEEN,
+        reason: 'Contains inappropriate language'
+      };
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+      mockModerationService.moderateContent.mockResolvedValue(moderationResult);
+      mockContentRepository.update.mockResolvedValue({
+        ...mockContentItem,
+        isActive: false,
+        ageRating: AgeRating.TEEN
+      });
+
+      // Act
+      const result = await contentService.moderateContent(contentId);
+
+      // Assert
+      expect(result).toEqual(moderationResult);
+      expect(mockModerationService.moderateContent).toHaveBeenCalledWith(mockContentItem);
+      expect(mockContentRepository.update).toHaveBeenCalledWith(contentId, {
+        isActive: false
+      });
+    });
+
+    it('should update age rating when suggested rating differs', async () => {
+      // Arrange
+      const contentId = 'test-content-id';
+      const moderationResult = {
+        isAppropriate: true,
+        confidence: 0.8,
+        flags: [],
+        suggestedAgeRating: AgeRating.TEEN,
+        reason: 'Content is appropriate but for teens'
+      };
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+      mockModerationService.moderateContent.mockResolvedValue(moderationResult);
+      mockContentRepository.update.mockResolvedValue({
+        ...mockContentItem,
+        ageRating: AgeRating.TEEN
+      });
+
+      // Act
+      const result = await contentService.moderateContent(contentId);
+
+      // Assert
+      expect(result).toEqual(moderationResult);
+      expect(mockContentRepository.update).toHaveBeenCalledWith(contentId, {
+        ageRating: AgeRating.TEEN
+      });
+    });
+  });
+
+  describe('reportContent', () => {
+    it('should create content report and update metrics', async () => {
+      // Arrange
+      const reportData: CreateReportRequest = {
+        contentId: 'test-content-id',
+        userId: 'user-123',
+        reason: 'inappropriate',
+        description: 'Contains inappropriate content',
+        severity: 'medium'
+      };
+
+      const reportLimit = { canReport: true, maxReports: 10, currentReports: 2 };
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+      mockContentReportRepository.checkUserReportLimit.mockResolvedValue(reportLimit);
+      mockContentReportRepository.create.mockResolvedValue();
+      mockContentRepository.update.mockResolvedValue({
+        ...mockContentItem,
+        qualityMetrics: {
+          ...mockContentItem.qualityMetrics,
+          reportCount: 1
+        }
+      });
+
+      // Act
+      await contentService.reportContent(reportData);
+
+      // Assert
+      expect(mockContentReportRepository.create).toHaveBeenCalledWith(reportData);
+      expect(mockContentRepository.update).toHaveBeenCalledWith(reportData.contentId, {
+        qualityMetrics: expect.objectContaining({
+          reportCount: 1
+        })
+      });
+    });
+
+    it('should trigger moderation for high severity reports', async () => {
+      // Arrange
+      const reportData: CreateReportRequest = {
+        contentId: 'test-content-id',
+        userId: 'user-123',
+        reason: 'inappropriate',
+        description: 'Contains inappropriate content',
+        severity: 'high'
+      };
+
+      const reportLimit = { canReport: true, maxReports: 10, currentReports: 2 };
+      const moderationResult = {
+        isAppropriate: false,
+        confidence: 0.9,
+        flags: ['inappropriate_content'],
+        suggestedAgeRating: AgeRating.ADULT,
+        reason: 'High severity report triggered moderation'
+      };
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+      mockContentReportRepository.checkUserReportLimit.mockResolvedValue(reportLimit);
+      mockContentReportRepository.create.mockResolvedValue();
+      mockContentRepository.update.mockResolvedValue(mockContentItem);
+      mockModerationService.moderateContent.mockResolvedValue(moderationResult);
+
+      // Act
+      await contentService.reportContent(reportData);
+
+      // Assert
+      expect(mockModerationService.moderateContent).toHaveBeenCalledWith(mockContentItem);
+    });
+
+    it('should reject report when user exceeds limit', async () => {
+      // Arrange
+      const reportData: CreateReportRequest = {
+        contentId: 'test-content-id',
+        userId: 'user-123',
+        reason: 'inappropriate',
+        description: 'Contains inappropriate content',
+        severity: 'medium'
+      };
+
+      const reportLimit = { canReport: false, maxReports: 10, currentReports: 10 };
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+      mockContentReportRepository.checkUserReportLimit.mockResolvedValue(reportLimit);
+
+      // Act & Assert
+      await expect(contentService.reportContent(reportData)).rejects.toThrow('Report limit exceeded');
+      expect(mockContentReportRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getRecommendations', () => {
+    it('should return AI-powered recommendations', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const options = { subject: 'programming', limit: 5 };
+      
+      const aiResponse = {
+        recommendations: [
+          {
+            content_id: 'content-1',
+            title: 'JavaScript Basics',
+            score: 0.95,
+            reason: 'Matches your learning style'
+          }
+        ]
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(aiResponse)
+      });
+
+      mockContentRepository.findById.mockResolvedValue(mockContentItem);
+
+      // Act
+      const result = await contentService.getRecommendations(userId, options);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/recommendations/'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining(userId)
+        })
+      );
+    });
+
+    it('should fallback to algorithmic recommendations when AI service fails', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const options = { subject: 'programming', limit: 5 };
+
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('AI service unavailable'));
+      
+      const fallbackContent = [mockContentItem];
+      mockContentRepository.search.mockResolvedValue({
+        items: fallbackContent,
+        total: 1
+      });
+
+      // Act
+      const result = await contentService.getRecommendations(userId, options);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe('filterContentForUser', () => {
+    it('should filter content based on user age and parental controls', async () => {
+      // Arrange
+      const content = [mockContentItem];
+      const userAgeRange = '13-17';
+      const parentalControls = {
+        contentFiltering: 'strict',
+        restrictedInteractions: true
+      };
+
+      const filteredContent = [mockContentItem];
+      mockModerationService.filterContentForUser.mockResolvedValue(filteredContent);
+
+      // Act
+      const result = await contentService.filterContentForUser(content, userAgeRange, parentalControls);
+
+      // Assert
+      expect(result).toEqual(filteredContent);
+      expect(mockModerationService.filterContentForUser).toHaveBeenCalledWith(
+        content,
+        userAgeRange,
+        parentalControls
+      );
+    });
+  });
+
+  describe('searchContentWithFiltering', () => {
+    it('should search and filter content for user', async () => {
+      // Arrange
+      const query: ContentQuery = { query: 'javascript tutorial' };
+      const userAgeRange = '13-17';
+      const parentalControls = { contentFiltering: 'moderate' };
+
+      const searchResult = {
+        items: [mockContentItem],
+        total: 1
+      };
+
+      const filteredContent = [mockContentItem];
+
+      mockContentRepository.search.mockResolvedValue(searchResult);
+      mockModerationService.filterContentForUser.mockResolvedValue(filteredContent);
+
+      // Act
+      const result = await contentService.searchContentWithFiltering(query, userAgeRange, parentalControls);
+
+      // Assert
+      expect(result.items).toEqual(filteredContent);
+      expect(result.total).toBe(1);
+      expect(mockModerationService.filterContentForUser).toHaveBeenCalledWith(
+        searchResult.items,
+        userAgeRange,
+        parentalControls
+      );
+    });
+  });
+
+  describe('validateAndModerateNewContent', () => {
+    it('should validate and moderate new content', async () => {
+      // Arrange
+      const newContentData = {
+        source: ContentSource.YOUTUBE,
+        externalId: 'new-video-id',
+        url: 'https://youtube.com/watch?v=new-video-id',
+        title: 'New Video',
+        description: 'New video description',
+        metadata: mockContentItem.metadata,
+        qualityMetrics: mockContentItem.qualityMetrics,
+        ageRating: AgeRating.ALL_AGES,
+        isActive: true
+      };
+
+      const createdContent = { ...mockContentItem, id: 'new-content-id' };
+      const moderationResult = {
+        isAppropriate: true,
+        confidence: 0.8,
+        flags: [],
+        suggestedAgeRating: AgeRating.ALL_AGES,
+        reason: 'Content is appropriate'
+      };
+
+      const qualityAssessment = {
+        overallScore: 85,
+        recommendations: ['Good educational content'],
+        strengths: ['Clear explanation'],
+        weaknesses: []
+      };
+
+      mockContentRepository.create.mockResolvedValue(createdContent);
+      mockModerationService.moderateContent.mockResolvedValue(moderationResult);
+      mockModerationService.assessContentQuality.mockResolvedValue(qualityAssessment);
+      mockContentRepository.findById.mockResolvedValue(createdContent);
+
+      // Act
+      const result = await contentService.validateAndModerateNewContent(newContentData);
+
+      // Assert
+      expect(result).toEqual(createdContent);
+      expect(mockContentRepository.create).toHaveBeenCalledWith(newContentData);
+      expect(mockModerationService.moderateContent).toHaveBeenCalledWith(createdContent);
+      expect(mockModerationService.assessContentQuality).toHaveBeenCalledWith(createdContent);
     });
   });
 });
