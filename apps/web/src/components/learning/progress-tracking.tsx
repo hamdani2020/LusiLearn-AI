@@ -65,7 +65,7 @@ export function ProgressTracking({ pathId, onMilestoneComplete }: ProgressTracki
   // Helper function to safely get analytics data
   const getAnalyticsData = (timeframe: 'weekly' | 'monthly') => {
     if (!dashboard) return null
-    return timeframe === 'weekly' ? dashboard.weeklyAnalytics : dashboard.monthlyAnalytics
+    return timeframe === 'weekly' ? (dashboard as any).weeklyAnalytics : (dashboard as any).monthlyAnalytics
   }
 
   const weeklyAnalytics = getAnalyticsData('weekly')

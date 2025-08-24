@@ -15,6 +15,7 @@ import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.rou
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { createContentRoutes } from './routes/content.routes';
+import { contentRecommendationsRouter } from './routes/content-recommendations.routes';
 import { createOnboardingRoutes } from './routes/onboarding.routes';
 import { createGoalsRoutes } from './routes/goals.routes';
 import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
@@ -186,6 +187,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 60 // Higher limit for content discovery
+    }
+  },
+  {
+    path: '/content',
+    router: contentRecommendationsRouter,
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 60 // Higher limit for content recommendations
     }
   },
   {

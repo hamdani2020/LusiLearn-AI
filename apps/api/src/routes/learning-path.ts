@@ -201,6 +201,66 @@ router.post('/:pathId/progress', authenticateToken, async (req: AuthenticatedReq
   }
 });
 
+// POST /api/v1/learning-paths/:pathId/objectives/:objectiveId/complete
+router.post('/:pathId/objectives/:objectiveId/complete', authenticateToken, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!req.user) {
+      throw new ValidationError('User not authenticated');
+    }
+
+    const { pathId, objectiveId } = req.params;
+    const { sessionDuration, comprehensionScore } = req.body;
+
+    // Verify user has access to this path
+    const existingPath = await learningPathService.getPath(pathId);
+    if (!existingPath) {
+      return res.status(404).json({
+        success: false,
+        message: 'Learning path not found'
+      });
+    }
+
+    const userPaths = await learningPathService.getUserPaths(req.user.id);
+    const hasAccess = userPaths.some(path => path.id === pathId);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this learning path'
+      });
+    }
+
+    // Find the objective
+    const objective = existingPath.objectives.find(obj => obj.id === objectiveId);
+    if (!objective) {
+      return res.status(404).json({
+        success: false,
+        message: 'Objective not found'
+      });
+    }
+
+    // Update progress to mark objective as completed
+    const updatedPath = await learningPathService.updateProgress(pathId, {
+      sessionId: `session-${Date.now()}`,
+      comprehensionScore: comprehensionScore || 85,
+      timeSpent: sessionDuration || 0,
+      strugglingConcepts: [],
+      masteredConcepts: [objective.title]
+    });
+
+    res.json({
+      success: true,
+      message: 'Objective completed successfully',
+      data: {
+        path: updatedPath,
+        completedObjective: objective
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/v1/learning-paths/:pathId/share
 router.post('/:pathId/share', authenticateToken, async (req: AuthenticatedRequest, res, next) => {
   try {

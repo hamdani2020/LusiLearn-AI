@@ -17,6 +17,8 @@ export function LearningPathsOverview({ userId }: LearningPathsOverviewProps) {
   const { data: learningPathsData, isLoading, error, refetch } = useLearningPaths(userId)
 
   const paths = learningPathsData?.data || []
+  
+  console.log('Learning paths data:', { learningPathsData, paths, isLoading, error })
 
   if (error) {
     return (

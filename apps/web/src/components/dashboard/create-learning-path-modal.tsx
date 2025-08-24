@@ -34,7 +34,9 @@ export function CreateLearningPathModal({ onSuccess }: CreateLearningPathModalPr
     }
 
     try {
-      await createLearningPath.mutateAsync({
+      console.log('Creating learning path...', formData)
+      
+      const result = await createLearningPath.mutateAsync({
         subject: formData.subject,
         goals: [{
           objective: formData.objective,
@@ -43,12 +45,23 @@ export function CreateLearningPathModal({ onSuccess }: CreateLearningPathModalPr
         }]
       })
 
-      alert('Learning path created successfully!')
+      console.log('Learning path created successfully:', result)
+      alert(`Learning path "${formData.subject}" created successfully with ${result?.objectives?.length || 0} objectives!`)
+      
       setOpen(false)
       setFormData({ subject: '', objective: '', timeline: '2 weeks', priority: 'medium' })
+      
+      // Trigger refresh of learning paths
       onSuccess?.()
+      
+      // Force a page refresh to ensure the new path appears
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+      
     } catch (error) {
-      alert('Failed to create learning path. Please try again.')
+      console.error('Failed to create learning path:', error)
+      alert(`Failed to create learning path: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 

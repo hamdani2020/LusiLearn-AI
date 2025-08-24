@@ -140,9 +140,11 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
                 </div>
               </div>
               {nextObjective && (
-                <Button className="flex items-center space-x-2">
-                  <Play className="h-4 w-4" />
-                  <span>Continue Learning</span>
+                <Button className="flex items-center space-x-2" asChild>
+                  <Link href={`/learning-paths/${path.id}/learn/${nextObjective.id}`}>
+                    <Play className="h-4 w-4" />
+                    <span>Continue Learning</span>
+                  </Link>
                 </Button>
               )}
             </div>
@@ -186,6 +188,7 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
                   objective={objective} 
                   index={index}
                   isNext={!objective.completed && objective.id === nextObjective?.id}
+                  pathId={path.id}
                 />
               ))
             ) : (
@@ -241,7 +244,7 @@ interface ObjectiveCardProps {
   isNext: boolean
 }
 
-function ObjectiveCard({ objective, index, isNext }: ObjectiveCardProps) {
+function ObjectiveCard({ objective, index, isNext, pathId }: ObjectiveCardProps & { pathId: string }) {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner': return 'bg-green-100 text-green-800'
@@ -284,14 +287,24 @@ function ObjectiveCard({ objective, index, isNext }: ObjectiveCardProps) {
             </div>
           </div>
           
-          {isNext && (
-            <div className="mt-3">
-              <Button size="sm" className="flex items-center space-x-2">
-                <Play className="h-3 w-3" />
-                <span>Start Learning</span>
+          <div className="mt-3 flex gap-2">
+            {!objective.completed && (
+              <Button size="sm" className="flex items-center space-x-2" asChild>
+                <Link href={`/learning-paths/${pathId}/learn/${objective.id}`}>
+                  <Play className="h-3 w-3" />
+                  <span>{isNext ? 'Start Learning' : 'Learn'}</span>
+                </Link>
               </Button>
-            </div>
-          )}
+            )}
+            {objective.completed && (
+              <Button size="sm" variant="outline" className="flex items-center space-x-2" asChild>
+                <Link href={`/learning-paths/${pathId}/learn/${objective.id}`}>
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Review</span>
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
