@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # PostgreSQL metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # API Service metrics
+  - job_name: 'api-service'
+    metrics_path: '/api/v1/monitoring/metrics'
+    static_configs:
+      - targets: ['api:3001']
+    scrape_interval: 30s
+
+  # AI Service metrics
+  - job_name: 'ai-service'
+    metrics_path: '/monitoring/metrics'
+    static_configs:
+      - targets: ['ai-service:8001']
+    scrape_interval: 30s
+
+  # Web service (if it has metrics endpoint)
+  - job_name: 'web-service'
+    static_configs:
+      - targets: ['web:3000']
+    scrape_interval: 60s
