@@ -83,7 +83,7 @@ export class AnalyticsService {
       }
     } catch (error) {
       logger.error('Failed to track analytics event', { 
-        error: error.message, 
+        error: (error as Error).message, 
         userId, 
         sessionId, 
         event 
@@ -168,7 +168,7 @@ export class AnalyticsService {
         await this.redis.setex(sessionKey, 86400, JSON.stringify(newSession));
       }
     } catch (error) {
-      logger.error('Failed to update session', { error: error.message, sessionId, userId });
+      logger.error('Failed to update session', { error: (error as Error).message, sessionId, userId });
     }
   }
 
@@ -201,7 +201,7 @@ export class AnalyticsService {
         }
       }
     } catch (error) {
-      logger.error('Failed to update real-time metrics', { error: error.message, event: event.event });
+      logger.error('Failed to update real-time metrics', { error: (error as Error).message, event: event.event });
     }
   }
 
@@ -247,7 +247,7 @@ export class AnalyticsService {
         await this.redis.expire(key, 86400 * 30);
       }
     } catch (error) {
-      logger.error('Failed to process learning event', { error: error.message, event: event.event });
+      logger.error('Failed to process learning event', { error: (error as Error).message, event: event.event });
     }
   }
 
@@ -345,7 +345,7 @@ export class AnalyticsService {
         }
       };
     } catch (error) {
-      logger.error('Failed to get user analytics', { error: error.message, userId });
+      logger.error('Failed to get user analytics', { error: (error as Error).message, userId });
       throw error;
     }
   }
@@ -423,7 +423,7 @@ export class AnalyticsService {
         }
       };
     } catch (error) {
-      logger.error('Failed to get platform analytics', { error: error.message, date: today });
+      logger.error('Failed to get platform analytics', { error: (error as Error).message, date: today });
       throw error;
     }
   }

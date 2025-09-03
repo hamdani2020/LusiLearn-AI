@@ -11,23 +11,31 @@ class RedisClient {
   private isConnected: boolean = false;
 
   private constructor() {
-    const config = getRedisConfig();
+    // Use REDIS_URL if available, otherwise construct from individual components
+    const redisUrl = process.env.REDIS_URL;
     
-    const options = {
-      socket: {
-        host: config.host,
-        port: config.port,
-        reconnectStrategy: (retries: number) => {
-          if (retries > 10) {
-            logger.error('Redis connection failed after 10 retries');
-            return new Error('Redis connection failed');
-          }
-          return Math.min(retries * 50, 1000);
+    let options: any;
+    
+    if (redisUrl) {
+      options = { url: redisUrl };
+    } else {
+      const config = getRedisConfig();
+      options = {
+        socket: {
+          host: config.host,
+          port: config.port,
+          reconnectStrategy: (retries: number) => {
+            if (retries > 10) {
+              logger.error('Redis connection failed after 10 retries');
+              return new Error('Redis connection failed');
+            }
+            return Math.min(retries * 50, 1000);
+          },
         },
-      },
-      password: config.password,
-      database: config.db,
-    };
+        password: config.password,
+        database: config.db,
+      };
+    }
 
     this.client = createClient(options);
 

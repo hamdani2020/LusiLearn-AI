@@ -16,16 +16,17 @@ if (!fs.existsSync(logsDir)) {
 const structuredFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ timestamp, level, message, service, userId, requestId, duration, ...meta }) => {
+  winston.format.printf((info) => {
+    const { timestamp, level, message, service, userId, requestId, duration, ...meta } = info;
     const logEntry = {
       timestamp,
       level,
       service,
       environment,
       message,
-      ...(userId && { userId }),
-      ...(requestId && { requestId }),
-      ...(duration && { duration }),
+      ...(userId ? { userId } : {}),
+      ...(requestId ? { requestId } : {}),
+      ...(duration ? { duration } : {}),
       ...meta
     };
     return JSON.stringify(logEntry);
@@ -35,7 +36,8 @@ const structuredFormat = winston.format.combine(
 // Performance logging format
 const performanceFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.printf(({ timestamp, level, message, service, method, url, statusCode, duration, userId, ...meta }) => {
+  winston.format.printf((info) => {
+    const { timestamp, level, message, service, method, url, statusCode, duration, userId, ...meta } = info;
     const logEntry = {
       timestamp,
       level,
@@ -46,7 +48,7 @@ const performanceFormat = winston.format.combine(
       url,
       statusCode,
       duration,
-      ...(userId && { userId }),
+      ...(userId ? { userId } : {}),
       message,
       ...meta
     };
@@ -57,7 +59,8 @@ const performanceFormat = winston.format.combine(
 // Security logging format
 const securityFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-  winston.format.printf(({ timestamp, level, message, service, userId, ip, userAgent, action, ...meta }) => {
+  winston.format.printf((info) => {
+    const { timestamp, level, message, service, userId, ip, userAgent, action, ...meta } = info;
     const logEntry = {
       timestamp,
       level,
@@ -132,7 +135,8 @@ export const aiLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-    winston.format.printf(({ timestamp, level, message, service, userId, model, tokens, cost, operation, ...meta }) => {
+    winston.format.printf((info) => {
+      const { timestamp, level, message, service, userId, model, tokens, cost, operation, ...meta } = info;
       const logEntry = {
         timestamp,
         level,
@@ -166,7 +170,8 @@ export const analyticsLogger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
-    winston.format.printf(({ timestamp, level, message, service, userId, sessionId, event, properties, ...meta }) => {
+    winston.format.printf((info) => {
+      const { timestamp, level, message, service, userId, sessionId, event, properties, ...meta } = info;
       const logEntry = {
         timestamp,
         level,
@@ -200,10 +205,11 @@ if (environment !== 'production') {
     format: winston.format.combine(
       winston.format.colorize(),
       winston.format.timestamp({ format: 'HH:mm:ss' }),
-      winston.format.printf(({ timestamp, level, message, service, userId, requestId, ...meta }) => {
+      winston.format.printf((info) => {
+        const { timestamp, level, message, service, userId, requestId, ...meta } = info;
         const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
         const userStr = userId ? ` [User: ${userId}]` : '';
-        const reqStr = requestId ? ` [Req: ${requestId.slice(0, 8)}]` : '';
+        const reqStr = requestId ? ` [Req: ${(requestId as string).slice(0, 8)}]` : '';
         return `${timestamp} [${service}] ${level}:${userStr}${reqStr} ${message}${metaStr}`;
       })
     )

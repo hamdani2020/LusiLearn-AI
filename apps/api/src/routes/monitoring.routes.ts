@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { HealthCheckService } from '../services/health-check.service';
 import { PerformanceMonitoringService } from '../services/performance-monitoring.service';
 import { ErrorTrackingService } from '../middleware/error-handler';
-import { MonitoringService } from '../middleware/monitoring';
+import { healthMonitor } from '../middleware/monitoring';
 import { asyncErrorHandler } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
@@ -11,7 +11,7 @@ export const createMonitoringRoutes = (): Router => {
   const healthCheck = HealthCheckService.getInstance();
   const performanceMonitoring = PerformanceMonitoringService.getInstance();
   const errorTracking = ErrorTrackingService.getInstance();
-  const requestMonitoring = MonitoringService.getInstance();
+  // Use healthMonitor directly
 
   /**
    * GET /health - Quick health check
@@ -48,7 +48,7 @@ export const createMonitoringRoutes = (): Router => {
    */
   router.get('/metrics', asyncErrorHandler(async (req: Request, res: Response) => {
     const performanceSummary = performanceMonitoring.getPerformanceSummary();
-    const requestMetrics = requestMonitoring.getMetricsSummary();
+    const requestMetrics = healthMonitor.getMetrics();
     const errorStats = errorTracking.getErrorStats();
 
     res.json({
@@ -92,8 +92,8 @@ export const createMonitoringRoutes = (): Router => {
   router.get('/metrics/requests', asyncErrorHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 100;
     
-    const metrics = requestMonitoring.getMetrics(limit);
-    const summary = requestMonitoring.getMetricsSummary();
+    const metrics = healthMonitor.getMetrics();
+    const summary = healthMonitor.getMetrics();
 
     res.json({
       success: true,
@@ -172,12 +172,13 @@ export const createMonitoringRoutes = (): Router => {
    * GET /status - Overall system status dashboard
    */
   router.get('/status', asyncErrorHandler(async (req: Request, res: Response) => {
-    const [healthStatus, performanceStatus, errorStats, requestStats] = await Promise.all([
+    const [healthStatus, performanceStatus, errorStats] = await Promise.all([
       healthCheck.performFullHealthCheck(),
       performanceMonitoring.getPerformanceSummary(),
-      errorTracking.getErrorStats(),
-      requestMonitoring.getMetricsSummary()
+      errorTracking.getErrorStats()
     ]);
+    
+    const requestStats = healthMonitor.getMetrics();
 
     const activeAlerts = performanceMonitoring.getActiveAlerts();
     const criticalAlerts = activeAlerts.filter(alert => alert.severity === 'critical');
