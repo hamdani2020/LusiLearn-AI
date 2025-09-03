@@ -160,20 +160,20 @@ export function ContentCard({
 
           <div className="flex items-center gap-1">
             <Star className="h-3 w-3 fill-current text-yellow-400" />
-            <span>{content.qualityMetrics.userRating.toFixed(1)}</span>
+            <span>{(content.qualityMetrics?.userRating || 0).toFixed(1)}</span>
           </div>
         </div>
 
         {/* Topics */}
         <div className="flex flex-wrap gap-1 mb-3">
-          {content.metadata.topics.slice(0, 3).map((topic, index) => (
+          {(content.metadata.topics || []).slice(0, 3).map((topic, index) => (
             <Badge key={index} variant="secondary" className="text-xs">
               {topic}
             </Badge>
           ))}
-          {content.metadata.topics.length > 3 && (
+          {(content.metadata.topics || []).length > 3 && (
             <Badge variant="secondary" className="text-xs">
-              +{content.metadata.topics.length - 3} more
+              +{(content.metadata.topics || []).length - 3} more
             </Badge>
           )}
         </div>

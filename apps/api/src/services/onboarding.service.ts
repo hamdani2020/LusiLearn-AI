@@ -405,14 +405,12 @@ export class OnboardingService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_profile: userProfile,
-          subject: subject,
-          question_count: 10,
-          difficulty_distribution: {
-            beginner: 0.4,
-            intermediate: 0.4,
-            advanced: 0.2
-          }
+          user_id: userProfile.id,
+          subject: subject || 'general',
+          num_questions: 10,
+          education_level: userProfile.demographics?.educationLevel || 'high_school',
+          learning_style: userProfile.learningPreferences?.learningStyle || ['visual', 'auditory'],
+          current_level: 'beginner'
         }),
         signal: AbortSignal.timeout(10000)
       });
@@ -440,7 +438,7 @@ export class OnboardingService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_profile: userProfile,
+          user_id: userProfile.id,
           answers: answers
         }),
         signal: AbortSignal.timeout(8000)
@@ -451,7 +449,7 @@ export class OnboardingService {
       }
 
       const result = await response.json();
-      return result.evaluation || null;
+      return result.data || null;
     } catch (error) {
       logger.warn('Failed to call AI service for skill evaluation', { error });
       throw error;

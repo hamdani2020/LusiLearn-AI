@@ -23,7 +23,17 @@ class Settings(BaseSettings):
     )
     
     # AI Provider Configuration
-    AI_PROVIDER: str = Field(default="openai", description="AI provider: 'openai' or 'gemini'")
+    AI_PROVIDER: str = Field(default="nvidia", description="AI provider: 'nvidia', 'openai', or 'gemini'")
+    
+    # NVIDIA Configuration (GPT-OSS)
+    NVIDIA_API_KEY: str = Field(default="", description="NVIDIA API key")
+    NVIDIA_BASE_URL: str = Field(default="https://integrate.api.nvidia.com/v1", description="NVIDIA API base URL")
+    NVIDIA_MODEL: str = Field(default="openai/gpt-oss-20b", description="Default NVIDIA model")
+    NVIDIA_MAX_TOKENS: int = Field(default=1000, description="Max tokens per request")
+    NVIDIA_TEMPERATURE: float = Field(default=0.7, description="NVIDIA temperature")
+    NVIDIA_TOP_P: float = Field(default=0.9, description="NVIDIA top_p parameter")
+    NVIDIA_TIMEOUT: int = Field(default=30, description="NVIDIA request timeout in seconds")
+    NVIDIA_MAX_RETRIES: int = Field(default=3, description="Max retry attempts for NVIDIA")
     
     # OpenAI Configuration
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")

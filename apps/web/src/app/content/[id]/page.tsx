@@ -11,42 +11,50 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ContentViewer } from '@/components/content/content-viewer'
 import { api, endpoints } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { ContentItem } from '@/types'
-
-// Mock user ID - in real app this would come from auth context
-const MOCK_USER_ID = 'user-123'
 
 export default function ContentPage() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { user, isLoading: authLoading } = useAuth()
   const contentId = params.id as string
 
   // Fetch content details
-  const { data: content, isLoading, error } = useQuery({
+  const { data: contentResponse, isLoading, error } = useQuery({
     queryKey: ['content', contentId],
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: ContentItem }>(
         endpoints.content.item(contentId)
       )
-      return response.data
+      return response
     },
     enabled: !!contentId,
   })
 
+  const content = contentResponse?.data as ContentItem | undefined
+
   // Fetch user's bookmark status
   const { data: bookmarks = [] } = useQuery({
-    queryKey: ['bookmarks', MOCK_USER_ID],
+    queryKey: ['bookmarks', user?.id],
     queryFn: async () => {
+      if (!user?.id) return []
       const response = await api.get<{ success: boolean; data: any[] }>(
-        endpoints.content.bookmarks(MOCK_USER_ID)
+        endpoints.content.bookmarks(user.id)
       )
-      return response.data
+      return response.data || []
     },
+    enabled: !!user?.id,
   })
 
   // Check if content is bookmarked
-  const isBookmarked = bookmarks.some(bookmark => bookmark.contentId === contentId)
+  const bookmarkList: any[] = Array.isArray(bookmarks)
+    ? bookmarks
+    : (bookmarks && Array.isArray(bookmarks.data))
+      ? bookmarks.data
+      : []
+  const isBookmarked = bookmarkList.some((bookmark: any) => bookmark.contentId === contentId)
 
   // Mock user rating and progress - in real app these would come from API
   const userRating = 0 // This would be fetched from user interactions
@@ -55,29 +63,32 @@ export default function ContentPage() {
   // Bookmark mutation
   const bookmarkMutation = useMutation({
     mutationFn: async (contentId: string) => {
+      if (!user?.id) throw new Error('User not authenticated')
+      
       if (isBookmarked) {
         // Remove bookmark
-        const bookmark = bookmarks.find(b => b.contentId === contentId)
+        const bookmark = bookmarkList.find((b: any) => b.contentId === contentId)
         if (bookmark) {
-          await api.delete(endpoints.content.bookmark(MOCK_USER_ID, bookmark.id))
+          await api.delete(endpoints.content.bookmark(user.id, bookmark.id))
         }
       } else {
         // Add bookmark
-        await api.post(endpoints.content.bookmark(MOCK_USER_ID, contentId), {
+        await api.post(endpoints.content.bookmark(user.id, contentId), {
           tags: [],
           notes: ''
         })
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', MOCK_USER_ID] })
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] })
     },
   })
 
   // Track content interaction
   const trackInteraction = async (interactionType: string, metadata?: any) => {
+    if (!user?.id) return
     try {
-      await api.post(endpoints.content.interaction(MOCK_USER_ID), {
+      await api.post(endpoints.content.interaction(user.id), {
         contentId,
         interactionType,
         ...metadata,
@@ -113,8 +124,8 @@ export default function ContentPage() {
     if (navigator.share && content) {
       try {
         await navigator.share({
-          title: content.title,
-          text: content.description,
+          title: content?.title || '',
+          text: content?.description || '',
           url: window.location.href,
         })
         await trackInteraction('share', { method: 'native' })
@@ -202,8 +213,8 @@ export default function ContentPage() {
 
       {/* Content Viewer */}
       <ContentViewer
-        content={content}
-        userId={MOCK_USER_ID}
+        content={content!}
+        userId={user?.id || 'anonymous'}
         isBookmarked={isBookmarked}
         userRating={userRating}
         progress={progress}

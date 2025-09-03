@@ -12,7 +12,6 @@ import {
   Users, 
   Target,
   User,
-  Settings,
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -98,12 +97,6 @@ export function MainNav() {
             <Link href="/profile">
               <User className="h-4 w-4" />
               <span className="hidden sm:ml-2 sm:inline-block">Profile</span>
-            </Link>
-          </Button>
-          
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/settings">
-              <Settings className="h-4 w-4" />
             </Link>
           </Button>
         </div>

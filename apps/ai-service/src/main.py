@@ -11,7 +11,7 @@ from .config import settings
 from .services.ai_service import AIService
 from .services.vector_service import VectorService
 from .services.health_service import HealthService
-from .routes import health, recommendations, learning_paths, peer_matching
+from .routes import health, recommendations, learning_paths, peer_matching, assessment
 from .middleware.error_handler import error_handler_middleware
 from .middleware.logging_middleware import logging_middleware
 
@@ -45,6 +45,10 @@ async def lifespan(app: FastAPI):
         await ai_service.initialize()
         await vector_service.initialize()
         await health_service.initialize()
+        
+        # Set global AI service instance for assessment router
+        from .routes import assessment
+        assessment.ai_service = ai_service
         
         logger.info("AI service started successfully")
         
@@ -94,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(recommendations.router, prefix="/api/v1/recommendations", tags=["recommendations"])
     app.include_router(learning_paths.router, prefix="/api/v1/learning-paths", tags=["learning-paths"])
     app.include_router(peer_matching.router, prefix="/api/v1/peer-matching", tags=["peer-matching"])
+    app.include_router(assessment.router, prefix="/api/v1/assessment", tags=["assessment"])
     
     # Global exception handler
     @app.exception_handler(Exception)

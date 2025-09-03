@@ -120,10 +120,14 @@ export interface OnboardingProgress {
 
 export interface SkillAssessmentResult {
   overallScore: number;
+  overall_score?: number; // API might return snake_case
   categoryScores: Record<string, number>;
+  category_scores?: Record<string, number>; // API might return snake_case
   recommendedLevel: 'beginner' | 'intermediate' | 'advanced';
+  recommended_level?: 'beginner' | 'intermediate' | 'advanced'; // API might return snake_case
   strengths: string[];
   areasForImprovement: string[];
+  areas_for_improvement?: string[]; // API might return snake_case
   confidence: number;
   completedAt: Date;
 }
@@ -493,10 +497,14 @@ export const OnboardingProgressSchema = z.object({
 
 export const SkillAssessmentResultSchema = z.object({
   overallScore: z.number().min(0).max(100),
+  overall_score: z.number().min(0).max(100).optional(),
   categoryScores: z.record(z.number()),
+  category_scores: z.record(z.number()).optional(),
   recommendedLevel: z.enum(['beginner', 'intermediate', 'advanced']),
+  recommended_level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   strengths: z.array(z.string()),
   areasForImprovement: z.array(z.string()),
+  areas_for_improvement: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(100),
   completedAt: z.date()
 });

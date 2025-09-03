@@ -1,4 +1,4 @@
-import Redis from 'redis';
+import { createClient, RedisClientType } from 'redis';
 import { getRedisConfig } from '@lusilearn/config';
 import { logger } from '../utils/logger';
 
@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
  * Redis client wrapper with connection management and utilities
  */
 class RedisClient {
-  private client: Redis.RedisClientType;
+  private client: RedisClientType;
   private static instance: RedisClient;
   private isConnected: boolean = false;
 
@@ -29,7 +29,7 @@ class RedisClient {
       database: config.db,
     };
 
-    this.client = Redis.createClient(options);
+    this.client = createClient(options);
 
     // Event handlers
     this.client.on('connect', () => {
@@ -41,7 +41,7 @@ class RedisClient {
       this.isConnected = true;
     });
 
-    this.client.on('error', (error) => {
+    this.client.on('error', (error: any) => {
       logger.error('Redis client error:', error);
       this.isConnected = false;
     });
@@ -85,7 +85,7 @@ class RedisClient {
     }
   }
 
-  public getClient(): Redis.RedisClientType {
+  public getClient(): RedisClientType {
     return this.client;
   }
 

@@ -15,6 +15,7 @@ python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 httpx==0.25.2
+psutil==5.9.6
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-mock==3.12.0

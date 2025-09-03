@@ -37,6 +37,10 @@ export function ContentRecommendations({
     rec.reason.includes('AI') || rec.reason.includes('personalized')
   )
   
+  const algorithmicRecommended = recommendations.filter(rec => 
+    rec.reason.includes('Algorithmic') || rec.reason.includes('Matches your interest')
+  )
+  
   const trending = recommendations.filter(rec => 
     rec.content.qualityMetrics.userRating >= 4.0 && 
     rec.content.qualityMetrics.completionRate >= 0.8
@@ -77,18 +81,20 @@ export function ContentRecommendations({
       {items.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
-            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
-              No recommendations available in this category yet.
-              <br />
-              Keep learning to get better suggestions!
-            </p>
+                                  <Brain className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-center">
+                        No AI-powered recommendations available right now.
+                        <br />
+                        <span className="font-medium">Pure AI content only - no mock data.</span>
+                        <br />
+                        Check back when our AI service has new insights for you!
+                      </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((recommendation) => (
-            <div key={recommendation.content.id} className="relative">
+          {items.map((recommendation, index) => (
+            <div key={`${recommendation.content.id}-${index}`} className="relative">
               <ContentCard
                 content={recommendation.content}
                 isBookmarked={bookmarkedIds.includes(recommendation.content.id)}
@@ -148,13 +154,22 @@ export function ContentRecommendations({
       
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="ai-recommended" className="flex items-center gap-2">
               <Brain className="h-4 w-4" />
               AI Picks
               {aiRecommended.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
                   {aiRecommended.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="smart-picks" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Smart Picks
+              {algorithmicRecommended.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {algorithmicRecommended.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -183,6 +198,14 @@ export function ContentRecommendations({
               items={aiRecommended}
               title="AI-Powered Recommendations"
               description="Personalized content based on your learning patterns, goals, and preferences"
+            />
+          </TabsContent>
+
+          <TabsContent value="smart-picks" className="mt-6">
+            <RecommendationSection
+              items={algorithmicRecommended}
+              title="Smart Algorithmic Picks"
+              description="Content recommendations based on quality metrics, subject relevance, and community ratings"
             />
           </TabsContent>
 

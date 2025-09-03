@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { MainNav } from '@/components/navigation/main-nav'
 import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 import { LearningPathsOverview } from '@/components/dashboard/learning-paths-overview'
 import { ProgressAnalytics } from '@/components/dashboard/progress-analytics'
@@ -11,35 +12,42 @@ import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { QuickActions } from '@/components/dashboard/quick-actions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Home, ArrowLeft } from 'lucide-react'
-
-// Mock user ID - in real app this would come from auth context
-const MOCK_USER_ID = "user-123"
+import { useAuth } from '@/hooks/use-auth'
 
 export default function DashboardPage() {
+  const { user, isLoading: authLoading } = useAuth()
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user?.id) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Please log in to access your dashboard</p>
+          <a href="/auth/login" className="text-primary hover:underline">Go to Login</a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Simple Navigation */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <div className="h-6 w-6 bg-primary rounded"></div>
-            <span className="font-bold">LusiLearn AI</span>
-          </Link>
-          <div className="ml-auto">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/">
-                <Home className="h-4 w-4 mr-2" />
-                Home
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* Use the same MainNav as content discovery */}
+      <MainNav />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Dashboard Header */}
         <Suspense fallback={<DashboardHeaderSkeleton />}>
-          <DashboardHeader userId={MOCK_USER_ID} />
+          <DashboardHeader userId={user.id} />
         </Suspense>
 
         {/* Quick Actions */}
@@ -50,22 +58,22 @@ export default function DashboardPage() {
           {/* Left Column - Learning Paths and Progress */}
           <div className="lg:col-span-2 space-y-6">
             <Suspense fallback={<LearningPathsSkeleton />}>
-              <LearningPathsOverview userId={MOCK_USER_ID} />
+              <LearningPathsOverview userId={user.id} />
             </Suspense>
             
             <Suspense fallback={<ProgressAnalyticsSkeleton />}>
-              <ProgressAnalytics userId={MOCK_USER_ID} />
+              <ProgressAnalytics userId={user.id} />
             </Suspense>
           </div>
 
           {/* Right Column - Goals and Activity */}
           <div className="space-y-6">
             <Suspense fallback={<GoalsSkeleton />}>
-              <GoalsAndMilestones userId={MOCK_USER_ID} />
+              <GoalsAndMilestones userId={user.id} />
             </Suspense>
             
             <Suspense fallback={<ActivitySkeleton />}>
-              <RecentActivity userId={MOCK_USER_ID} />
+              <RecentActivity userId={user.id} />
             </Suspense>
           </div>
         </div>

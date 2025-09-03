@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - heading "Welcome to LusiLearn AI" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Personalized learning powered by artificial intelligence
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - img [ref=e13]
+          - generic [ref=e16]:
+            - heading "Adaptive Learning Paths" [level=3] [ref=e17]
+            - paragraph [ref=e18]: AI-powered curriculum that adapts to your learning style and pace
+        - generic [ref=e19]:
+          - img [ref=e21]
+          - generic [ref=e26]:
+            - heading "Peer Collaboration" [level=3] [ref=e27]
+            - paragraph [ref=e28]: Connect with study partners and mentors for collaborative learning
+        - generic [ref=e29]:
+          - img [ref=e31]
+          - generic [ref=e33]:
+            - heading "Real-time Progress" [level=3] [ref=e34]
+            - paragraph [ref=e35]: Track your learning journey with detailed analytics and insights
+        - generic [ref=e36]:
+          - img [ref=e38]
+          - generic [ref=e40]:
+            - heading "Safe Learning Environment" [level=3] [ref=e41]
+            - paragraph [ref=e42]: Age-appropriate content with comprehensive safety and parental controls
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - heading "Welcome back" [level=3] [ref=e46]
+        - paragraph [ref=e47]: Sign in to your LusiLearn AI account
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: Email
+            - textbox "Email" [ref=e52]
+          - generic [ref=e53]:
+            - generic [ref=e54]: Password
+            - generic [ref=e55]:
+              - textbox "Password" [ref=e56]
+              - button [ref=e57] [cursor=pointer]:
+                - img [ref=e58] [cursor=pointer]
+          - button "Sign In" [ref=e61] [cursor=pointer]
+        - generic [ref=e62]:
+          - generic [ref=e63]: Don't have an account?
+          - button "Sign up" [ref=e64] [cursor=pointer]
+  - alert [ref=e65]
+```

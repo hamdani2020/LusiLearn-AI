@@ -16,6 +16,7 @@ import { ContentCard } from '@/components/content/content-card'
 import { ContentRecommendations } from '@/components/content/content-recommendations'
 import { PersonalLibrary } from '@/components/content/personal-library'
 import { api, endpoints } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { 
   ContentSearchQuery, 
   ContentSearchResult, 
@@ -24,43 +25,129 @@ import {
   ContentInteraction 
 } from '@/types'
 
-// Get user ID from auth context - for now using a mock
-const MOCK_USER_ID = 'user-123' // TODO: Replace with real auth context
-
 export default function ContentDiscoveryPage() {
   const [activeTab, setActiveTab] = useState('discover')
   const [searchResults, setSearchResults] = useState<ContentSearchResult | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({})
   const queryClient = useQueryClient()
+  const { user, isLoading: authLoading } = useAuth()
 
   // Fetch recommendations
-  const { data: recommendations = [], isLoading: recommendationsLoading, refetch: refetchRecommendations } = useQuery({
-    queryKey: ['recommendations', MOCK_USER_ID],
+  const { data: recommendationsResponse, isLoading: recommendationsLoading, refetch: refetchRecommendations } = useQuery({
+    queryKey: ['recommendations', user?.id],
     queryFn: async () => {
+      if (!user?.id) return { success: false, data: [] }
       const response = await api.get<{ success: boolean; data: ContentRecommendation[] }>(
-        endpoints.content.recommendations(MOCK_USER_ID)
+        `${endpoints.content.recommendations(user.id)}?subject=programming&limit=10`
       )
-      return response.data
+      return response
     },
+    enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   // Fetch bookmarks
-  const { data: bookmarks = [], isLoading: bookmarksLoading } = useQuery({
-    queryKey: ['bookmarks', MOCK_USER_ID],
+  const { data: bookmarksResponse, isLoading: bookmarksLoading } = useQuery({
+    queryKey: ['bookmarks', user?.id],
     queryFn: async () => {
+      if (!user?.id) return { success: false, data: [] }
       const response = await api.get<{ success: boolean; data: BookmarkedContent[] }>(
-        endpoints.content.bookmarks(MOCK_USER_ID)
+        endpoints.content.bookmarks(user.id)
       )
-      return response.data
+      return response
+    },
+    enabled: !!user?.id,
+  })
+
+  const recommendations = recommendationsResponse?.data || []
+  const bookmarks = bookmarksResponse?.data || []
+
+  // Bookmark mutations
+  const bookmarkMutation = useMutation({
+    mutationFn: async (contentId: string) => {
+      if (!user?.id) throw new Error('User not authenticated')
+      
+      const isBookmarked = (bookmarks as BookmarkedContent[]).some((bookmark: BookmarkedContent) => bookmark.contentId === contentId)
+      if (isBookmarked) {
+        // Remove bookmark
+        const bookmark = (bookmarks as BookmarkedContent[]).find((b: BookmarkedContent) => b.contentId === contentId)
+        if (bookmark) {
+          await api.delete(endpoints.content.bookmark(user.id, bookmark.id))
+        }
+      } else {
+        // Add bookmark
+        await api.post(endpoints.content.bookmark(user.id, contentId), {
+          tags: [],
+          notes: ''
+        })
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] })
     },
   })
 
+  // Update bookmark tags
+  const updateTagsMutation = useMutation({
+    mutationFn: async ({ bookmarkId, tags }: { bookmarkId: string; tags: string[] }) => {
+      await api.put(`/api/v1/bookmarks/${bookmarkId}`, { tags })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] })
+    },
+  })
+
+  // Update bookmark notes
+  const updateNotesMutation = useMutation({
+    mutationFn: async ({ bookmarkId, notes }: { bookmarkId: string; notes: string }) => {
+      await api.put(`/api/v1/bookmarks/${bookmarkId}`, { notes })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] })
+    },
+  })
+
+  // Remove bookmark
+  const removeBookmarkMutation = useMutation({
+    mutationFn: async (bookmarkId: string) => {
+      await api.delete(`/api/v1/bookmarks/${bookmarkId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] })
+    },
+  })
+
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login prompt if not authenticated
+  if (!user?.id) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Please log in to access content</p>
+          <a href="/auth/login" className="text-primary hover:underline">Go to Login</a>
+        </div>
+      </div>
+    )
+  }
+
   // Get bookmarked content IDs for easy lookup
-  const bookmarkedIds = bookmarks.map(bookmark => bookmark.contentId)
+  const bookmarkedIds = Array.isArray(bookmarks)
+    ? bookmarks.map((bookmark: BookmarkedContent) => bookmark.contentId)
+    : []
 
   // Mock user ratings - in real app this would come from API
-  const [userRatings, setUserRatings] = useState<Record<string, number>>({})
 
   // Search content
   const handleSearch = async (query: ContentSearchQuery) => {
@@ -70,7 +157,7 @@ export default function ContentDiscoveryPage() {
         endpoints.content.search,
         query
       )
-      setSearchResults(response.data)
+      setSearchResults(response.data?.data || null)
     } catch (error) {
       console.error('Search failed:', error)
       // Show error state
@@ -91,63 +178,11 @@ export default function ContentDiscoveryPage() {
     }
   }
 
-  // Bookmark mutations
-  const bookmarkMutation = useMutation({
-    mutationFn: async (contentId: string) => {
-      const isBookmarked = bookmarkedIds.includes(contentId)
-      if (isBookmarked) {
-        // Remove bookmark
-        const bookmark = bookmarks.find(b => b.contentId === contentId)
-        if (bookmark) {
-          await api.delete(endpoints.content.bookmark(MOCK_USER_ID, bookmark.id))
-        }
-      } else {
-        // Add bookmark
-        await api.post(endpoints.content.bookmark(MOCK_USER_ID, contentId), {
-          tags: [],
-          notes: ''
-        })
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', MOCK_USER_ID] })
-    },
-  })
-
-  // Update bookmark tags
-  const updateTagsMutation = useMutation({
-    mutationFn: async ({ bookmarkId, tags }: { bookmarkId: string; tags: string[] }) => {
-      await api.put(`/api/v1/bookmarks/${bookmarkId}`, { tags })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', MOCK_USER_ID] })
-    },
-  })
-
-  // Update bookmark notes
-  const updateNotesMutation = useMutation({
-    mutationFn: async ({ bookmarkId, notes }: { bookmarkId: string; notes: string }) => {
-      await api.put(`/api/v1/bookmarks/${bookmarkId}`, { notes })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', MOCK_USER_ID] })
-    },
-  })
-
-  // Remove bookmark
-  const removeBookmarkMutation = useMutation({
-    mutationFn: async (bookmarkId: string) => {
-      await api.delete(`/api/v1/bookmarks/${bookmarkId}`)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', MOCK_USER_ID] })
-    },
-  })
-
   // Track content interaction
   const trackInteraction = async (contentId: string, interactionType: ContentInteraction['interactionType'], metadata?: any) => {
+    if (!user?.id) return
     try {
-      await api.post(endpoints.content.interaction(MOCK_USER_ID), {
+      await api.post(endpoints.content.interaction(user.id), {
         contentId,
         interactionType,
         ...metadata,
@@ -203,7 +238,7 @@ export default function ContentDiscoveryPage() {
           <TabsTrigger value="recommendations" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             For You
-            {recommendations.length > 0 && (
+            {Array.isArray(recommendations) && recommendations.length > 0 && (
               <Badge variant="secondary" className="ml-1">
                 {recommendations.length}
               </Badge>
@@ -216,7 +251,7 @@ export default function ContentDiscoveryPage() {
           <TabsTrigger value="library" className="flex items-center gap-2">
             <Library className="h-4 w-4" />
             Library
-            {bookmarks.length > 0 && (
+            {Array.isArray(bookmarks) && bookmarks.length > 0 && (
               <Badge variant="secondary" className="ml-1">
                 {bookmarks.length}
               </Badge>
@@ -281,7 +316,7 @@ export default function ContentDiscoveryPage() {
         {/* Recommendations Tab */}
         <TabsContent value="recommendations" className="mt-6">
           <ContentRecommendations
-            recommendations={recommendations}
+            recommendations={recommendations as ContentRecommendation[]}
             isLoading={recommendationsLoading}
             onRefresh={() => refetchRecommendations()}
             onBookmark={handleBookmark}
@@ -311,7 +346,7 @@ export default function ContentDiscoveryPage() {
         {/* Personal Library Tab */}
         <TabsContent value="library" className="mt-6">
           <PersonalLibrary
-            bookmarks={bookmarks}
+            bookmarks={bookmarks as BookmarkedContent[]}
             isLoading={bookmarksLoading}
             onRemoveBookmark={(bookmarkId) => removeBookmarkMutation.mutate(bookmarkId)}
             onUpdateTags={(bookmarkId, tags) => updateTagsMutation.mutate({ bookmarkId, tags })}

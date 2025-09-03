@@ -45,9 +45,9 @@ const UpdateBookmarkSchema = z.object({
 const ContentInteractionSchema = z.object({
     contentId: z.string().uuid(),
     interactionType: z.enum(['view', 'complete', 'bookmark', 'rate', 'share', 'report']),
-    duration: z.number().optional(),
-    progress: z.number().min(0).max(100).optional(),
-    rating: z.number().min(1).max(5).optional(),
+    duration: z.number().int().optional(),
+    progress: z.number().int().min(0).max(100).optional(),
+    rating: z.number().int().min(1).max(5).optional(),
     timestamp: z.string().datetime()
 });
 

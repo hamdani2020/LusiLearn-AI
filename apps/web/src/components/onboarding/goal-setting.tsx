@@ -51,7 +51,7 @@ export function GoalSetting({ onNext, onPrevious }: GoalSettingProps) {
     title: '',
     description: '',
     targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    priority: 'medium' as const
+    priority: 'medium' as 'low' | 'medium' | 'high'
   })
 
   const addGoal = () => {

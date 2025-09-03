@@ -1,11 +1,12 @@
 "use client"
 
-import { use } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { MainNav } from '@/components/navigation/main-nav'
 import { useLearningPath } from '@/hooks/use-learning-data'
+import { ProgressTracking } from '@/components/learning/progress-tracking'
 import { 
   ArrowLeft, 
   Play, 
@@ -18,11 +19,11 @@ import {
 import Link from 'next/link'
 
 interface LearningPathPageProps {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 export default function LearningPathPage({ params }: LearningPathPageProps) {
-  const { id } = use(params)
+  const { id } = params
   const { data: pathData, isLoading, error } = useLearningPath(id)
 
   // Mock data for demonstration
@@ -107,85 +108,125 @@ export default function LearningPathPage({ params }: LearningPathPageProps) {
     )
   }
 
-  const completedObjectives = path.objectives.filter(obj => obj.completed).length
-  const totalObjectives = path.objectives.length
-  const nextObjective = path.objectives.find(obj => !obj.completed)
+  const completedObjectives = (path.objectives || []).filter((obj: any) => obj.completed).length
+  const totalObjectives = path.objectives?.length || 0
+  const nextObjective = (path.objectives || []).find((obj: any) => !obj.completed)
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <MainNav />
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+        </div>
 
-      {/* Path Overview */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
+        {/* Path Overview */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-2xl">{path.subject}</CardTitle>
+                <div className="flex items-center space-x-2 mt-2">
+                  <Badge>{path.currentLevel}</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {completedObjectives}/{totalObjectives} objectives completed
+                  </span>
+                </div>
+              </div>
+              {nextObjective && (
+                <Button className="flex items-center space-x-2" asChild>
+                  <Link href={`/learning-paths/${path.id}/learn/${nextObjective.id}`}>
+                    <Play className="h-4 w-4" />
+                    <span>Continue Learning</span>
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <CardTitle className="text-2xl">{path.subject}</CardTitle>
-              <div className="flex items-center space-x-2 mt-2">
-                <Badge>{path.currentLevel}</Badge>
-                <span className="text-sm text-muted-foreground">
-                  {completedObjectives}/{totalObjectives} objectives completed
-                </span>
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span>Overall Progress</span>
+                <span>{path.progress.overallProgress}%</span>
+              </div>
+              <Progress value={path.progress.overallProgress} className="h-3" />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <Target className="h-4 w-4 text-primary" />
+                <span>Current: {path.progress?.currentMilestone || 'Getting started'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-primary" />
+                <span>Est. completion: {path.progress?.estimatedCompletion ? new Date(path.progress.estimatedCompletion).toLocaleDateString() : 'TBD'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span>Next: {nextObjective?.title || 'No objectives yet'}</span>
               </div>
             </div>
-            {nextObjective && (
-              <Button className="flex items-center space-x-2">
-                <Play className="h-4 w-4" />
-                <span>Continue Learning</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span>Overall Progress</span>
-              <span>{path.progress.overallProgress}%</span>
-            </div>
-            <Progress value={path.progress.overallProgress} className="h-3" />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center space-x-2">
-              <Target className="h-4 w-4 text-primary" />
-              <span>Current: {path.progress.currentMilestone}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <span>Est. completion: {new Date(path.progress.estimatedCompletion).toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <span>Next: {nextObjective?.title || 'Complete!'}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Learning Objectives */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Learning Objectives</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {path.objectives.map((objective, index) => (
-            <ObjectiveCard 
-              key={objective.id} 
-              objective={objective} 
-              index={index}
-              isNext={!objective.completed && objective.id === nextObjective?.id}
-            />
-          ))}
-        </CardContent>
-      </Card>
+        {/* Learning Objectives */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Learning Objectives</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(path.objectives || []).length > 0 ? (
+              (path.objectives || []).map((objective: any, index: number) => (
+                <ObjectiveCard 
+                  key={objective.id} 
+                  objective={objective} 
+                  index={index}
+                  isNext={!objective.completed && objective.id === nextObjective?.id}
+                  pathId={path.id}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground mb-4">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No Learning Objectives Yet</h3>
+                  <p className="text-sm">
+                    Your learning path is being generated. This may take a few moments.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Progress Tracking */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProgressTracking 
+                pathId={path.id}
+                onMilestoneComplete={(milestoneId) => {
+                  console.log('Milestone completed:', milestoneId)
+                  // Refresh the learning path data
+                  window.location.reload()
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }
@@ -203,7 +244,7 @@ interface ObjectiveCardProps {
   isNext: boolean
 }
 
-function ObjectiveCard({ objective, index, isNext }: ObjectiveCardProps) {
+function ObjectiveCard({ objective, index, isNext, pathId }: ObjectiveCardProps & { pathId: string }) {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner': return 'bg-green-100 text-green-800'
@@ -246,14 +287,24 @@ function ObjectiveCard({ objective, index, isNext }: ObjectiveCardProps) {
             </div>
           </div>
           
-          {isNext && (
-            <div className="mt-3">
-              <Button size="sm" className="flex items-center space-x-2">
-                <Play className="h-3 w-3" />
-                <span>Start Learning</span>
+          <div className="mt-3 flex gap-2">
+            {!objective.completed && (
+              <Button size="sm" className="flex items-center space-x-2" asChild>
+                <Link href={`/learning-paths/${pathId}/learn/${objective.id}`}>
+                  <Play className="h-3 w-3" />
+                  <span>{isNext ? 'Start Learning' : 'Learn'}</span>
+                </Link>
               </Button>
-            </div>
-          )}
+            )}
+            {objective.completed && (
+              <Button size="sm" variant="outline" className="flex items-center space-x-2" asChild>
+                <Link href={`/learning-paths/${pathId}/learn/${objective.id}`}>
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Review</span>
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

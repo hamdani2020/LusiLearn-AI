@@ -1,264 +1,191 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+import { logPerformance, logger } from '../utils/logger';
 
-export interface RequestMetrics {
-  requestId: string;
-  method: string;
-  url: string;
-  path: string;
-  statusCode?: number;
-  duration?: number;
-  userAgent?: string;
-  ip: string;
-  userId?: string;
-  apiVersion?: string;
-  timestamp: string;
-  responseSize?: number;
-  errorCode?: string;
-}
-
-export class MonitoringService {
-  private static instance: MonitoringService;
-  private metrics: RequestMetrics[] = [];
-  private readonly maxMetrics = 10000; // Keep last 10k requests in memory
-
-  private constructor() {}
-
-  public static getInstance(): MonitoringService {
-    if (!MonitoringService.instance) {
-      MonitoringService.instance = new MonitoringService();
+// Extend Request interface to include monitoring data
+declare global {
+  namespace Express {
+    interface Request {
+      requestId: string;
+      startTime: number;
+      userId?: string;
     }
-    return MonitoringService.instance;
-  }
-
-  public addMetric(metric: RequestMetrics): void {
-    this.metrics.push(metric);
-    
-    // Keep only the most recent metrics
-    if (this.metrics.length > this.maxMetrics) {
-      this.metrics = this.metrics.slice(-this.maxMetrics);
-    }
-  }
-
-  public getMetrics(limit: number = 100): RequestMetrics[] {
-    return this.metrics.slice(-limit);
-  }
-
-  public getMetricsSummary(): any {
-    const now = Date.now();
-    const oneHourAgo = now - (60 * 60 * 1000);
-    const recentMetrics = this.metrics.filter(m => 
-      new Date(m.timestamp).getTime() > oneHourAgo
-    );
-
-    const statusCodes = recentMetrics.reduce((acc, metric) => {
-      const code = metric.statusCode || 0;
-      acc[code] = (acc[code] || 0) + 1;
-      return acc;
-    }, {} as Record<number, number>);
-
-    const avgDuration = recentMetrics.length > 0 
-      ? recentMetrics.reduce((sum, m) => sum + (m.duration || 0), 0) / recentMetrics.length
-      : 0;
-
-    const errorRate = recentMetrics.length > 0
-      ? (recentMetrics.filter(m => (m.statusCode || 0) >= 400).length / recentMetrics.length) * 100
-      : 0;
-
-    return {
-      totalRequests: recentMetrics.length,
-      averageResponseTime: Math.round(avgDuration),
-      errorRate: Math.round(errorRate * 100) / 100,
-      statusCodeDistribution: statusCodes,
-      timeWindow: '1 hour',
-      timestamp: new Date().toISOString()
-    };
   }
 }
 
-/**
- * Enhanced monitoring middleware that tracks detailed request/response metrics
- */
-export const monitoringMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const startTime = Date.now();
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const monitoring = MonitoringService.getInstance();
+// Request ID middleware
+export const requestIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  req.requestId = uuidv4();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+};
 
-  // Add request ID to request for tracking
-  (req as any).requestId = requestId;
-  (req as any).startTime = startTime;
-
-  // Create initial metric
-  const metric: RequestMetrics = {
-    requestId,
-    method: req.method,
-    url: req.url,
-    path: req.path,
-    userAgent: req.get('User-Agent'),
-    ip: req.ip || req.connection.remoteAddress || 'unknown',
-    apiVersion: (req as any).apiVersion,
-    timestamp: new Date().toISOString()
-  };
-
-  // Add user ID if available (from auth middleware)
-  if ((req as any).user?.id) {
-    metric.userId = (req as any).user.id;
-  }
-
-  // Override res.end to capture final metrics
+// Performance monitoring middleware
+export const performanceMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  req.startTime = Date.now();
+  
+  // Override res.end to capture response time
   const originalEnd = res.end;
   res.end = function(chunk?: any, encoding?: any) {
-    const duration = Date.now() - startTime;
+    const duration = Date.now() - req.startTime;
     
-    // Update metric with response data
-    metric.statusCode = res.statusCode;
-    metric.duration = duration;
-    
-    if (chunk) {
-      metric.responseSize = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
-    }
-
-    // Add error code if it's an error response
-    if (res.statusCode >= 400) {
-      metric.errorCode = res.get('X-Error-Code') || `HTTP_${res.statusCode}`;
-    }
-
-    // Store the metric
-    monitoring.addMetric(metric);
-
-    // Log performance warnings
-    if (duration > 5000) { // 5 seconds
-      logger.warn('Slow request detected', {
-        requestId,
-        method: req.method,
-        path: req.path,
-        duration: `${duration}ms`,
-        statusCode: res.statusCode
-      });
-    }
-
-    // Log error responses
-    if (res.statusCode >= 400) {
-      logger.error('Error response', {
-        requestId,
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration: `${duration}ms`,
+    // Log performance metrics
+    logPerformance(
+      req.method,
+      req.originalUrl,
+      res.statusCode,
+      duration,
+      req.userId,
+      {
+        requestId: req.requestId,
         userAgent: req.get('User-Agent'),
-        ip: req.ip
+        ip: req.ip,
+        contentLength: res.get('Content-Length'),
+        referer: req.get('Referer')
+      }
+    );
+
+    // Log slow requests
+    if (duration > 1000) {
+      logger.warn('Slow request detected', {
+        method: req.method,
+        url: req.originalUrl,
+        duration,
+        requestId: req.requestId,
+        userId: req.userId
       });
     }
 
-    return originalEnd.call(this, chunk, encoding);
+    // Call original end method
+    originalEnd.call(this, chunk, encoding);
   };
 
   next();
 };
 
-/**
- * Security monitoring middleware to detect suspicious activities
- */
-export const securityMonitoringMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const suspiciousPatterns = [
-    /\.\.\//g, // Path traversal
-    /<script/gi, // XSS attempts
-    /union\s+select/gi, // SQL injection
-    /javascript:/gi, // JavaScript injection
-    /eval\(/gi, // Code injection
-  ];
-
-  const requestData = JSON.stringify({
-    url: req.url,
-    query: req.query,
-    body: req.body,
-    headers: req.headers
+// Error monitoring middleware
+export const errorMonitoringMiddleware = (error: Error, req: Request, res: Response, next: NextFunction) => {
+  const duration = Date.now() - req.startTime;
+  
+  logger.error('Request error', {
+    error: error.message,
+    stack: error.stack,
+    method: req.method,
+    url: req.originalUrl,
+    requestId: req.requestId,
+    userId: req.userId,
+    duration,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip
   });
 
-  const suspiciousActivity = suspiciousPatterns.some(pattern => 
-    pattern.test(requestData)
-  );
+  next(error);
+};
 
-  if (suspiciousActivity) {
-    logger.warn('Suspicious request detected', {
-      requestId: (req as any).requestId,
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString()
-    });
+// Health check metrics
+interface HealthMetrics {
+  uptime: number;
+  timestamp: number;
+  memory: NodeJS.MemoryUsage;
+  cpu: number;
+  activeConnections: number;
+  totalRequests: number;
+  errorRate: number;
+}
 
-    // Add security headers
-    res.set('X-Security-Alert', 'Suspicious activity detected');
+class HealthMonitor {
+  private totalRequests = 0;
+  private errorCount = 0;
+  private activeConnections = 0;
+  private startTime = Date.now();
+
+  incrementRequests() {
+    this.totalRequests++;
   }
 
-  // Rate limiting per IP
-  const clientIP = req.ip || 'unknown';
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute window
-  
-  // Simple in-memory rate limiting (in production, use Redis)
-  if (!(global as any).rateLimitStore) {
-    (global as any).rateLimitStore = new Map();
+  incrementErrors() {
+    this.errorCount++;
   }
 
-  const requests = (global as any).rateLimitStore.get(clientIP) || [];
-  const recentRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
-  
-  if (recentRequests.length > 100) { // 100 requests per minute
-    logger.warn('Rate limit exceeded', {
-      ip: clientIP,
-      requestCount: recentRequests.length,
-      timeWindow: '1 minute'
-    });
-    
-    return res.status(429).json({
-      error: 'Rate Limit Exceeded',
-      message: 'Too many requests from this IP address',
-      retryAfter: 60
-    });
+  incrementConnections() {
+    this.activeConnections++;
   }
 
-  recentRequests.push(now);
-  (global as any).rateLimitStore.set(clientIP, recentRequests);
+  decrementConnections() {
+    this.activeConnections--;
+  }
+
+  getMetrics(): HealthMetrics {
+    return {
+      uptime: Date.now() - this.startTime,
+      timestamp: Date.now(),
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage().user / 1000000, // Convert to seconds
+      activeConnections: this.activeConnections,
+      totalRequests: this.totalRequests,
+      errorRate: this.totalRequests > 0 ? (this.errorCount / this.totalRequests) * 100 : 0
+    };
+  }
+
+  reset() {
+    this.totalRequests = 0;
+    this.errorCount = 0;
+    this.startTime = Date.now();
+  }
+}
+
+export const healthMonitor = new HealthMonitor();
+
+// Middleware to track requests and connections
+export const healthTrackingMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  healthMonitor.incrementRequests();
+  healthMonitor.incrementConnections();
+
+  res.on('finish', () => {
+    healthMonitor.decrementConnections();
+    if (res.statusCode >= 400) {
+      healthMonitor.incrementErrors();
+    }
+  });
 
   next();
 };
 
-/**
- * API metrics endpoint middleware
- */
-export const createMetricsEndpoint = () => {
-  return (req: Request, res: Response) => {
-    const monitoring = MonitoringService.getInstance();
-    const summary = monitoring.getMetricsSummary();
-    
-    res.json({
-      success: true,
-      data: summary,
-      timestamp: new Date().toISOString()
-    });
-  };
+// Memory usage monitoring
+export const startMemoryMonitoring = () => {
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const memoryUsageMB = {
+      rss: Math.round(memUsage.rss / 1024 / 1024),
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+      external: Math.round(memUsage.external / 1024 / 1024)
+    };
+
+    logger.info('Memory usage', { memoryUsage: memoryUsageMB });
+
+    // Alert on high memory usage
+    if (memoryUsageMB.heapUsed > 500) { // 500MB threshold
+      logger.warn('High memory usage detected', { memoryUsage: memoryUsageMB });
+    }
+  }, 60000); // Check every minute
 };
 
-/**
- * Detailed metrics endpoint for debugging
- */
-export const createDetailedMetricsEndpoint = () => {
-  return (req: Request, res: Response) => {
-    const monitoring = MonitoringService.getInstance();
-    const limit = parseInt(req.query.limit as string) || 100;
-    const metrics = monitoring.getMetrics(limit);
+// CPU usage monitoring
+export const startCPUMonitoring = () => {
+  let lastCpuUsage = process.cpuUsage();
+  
+  setInterval(() => {
+    const currentCpuUsage = process.cpuUsage(lastCpuUsage);
+    const cpuPercent = (currentCpuUsage.user + currentCpuUsage.system) / 1000000; // Convert to seconds
     
-    res.json({
-      success: true,
-      data: {
-        metrics,
-        total: metrics.length,
-        summary: monitoring.getMetricsSummary()
-      },
-      timestamp: new Date().toISOString()
-    });
-  };
+    logger.info('CPU usage', { cpuUsage: cpuPercent });
+
+    // Alert on high CPU usage
+    if (cpuPercent > 80) { // 80% threshold
+      logger.warn('High CPU usage detected', { cpuUsage: cpuPercent });
+    }
+
+    lastCpuUsage = process.cpuUsage();
+  }, 60000); // Check every minute
 };

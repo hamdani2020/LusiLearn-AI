@@ -445,9 +445,89 @@ export class LearningPathService {
     level: DifficultyLevel, 
     goals: LearningGoal[]
   ): Promise<LearningObjective[]> {
-    // This is a fallback implementation - in production, this would call the AI service
+    // Enhanced fallback implementation with more comprehensive objectives
+    const subjectKey = subject.toLowerCase().replace(/\s+/g, '');
+    
     const baseObjectives: Record<string, LearningObjective[]> = {
-      mathematics: [
+      'javascript': [
+        {
+          id: 'js-1',
+          title: 'Variables and Data Types',
+          description: 'Learn about different data types, variable declarations (var, let, const), and basic operations',
+          estimatedDuration: 120,
+          prerequisites: [],
+          skills: ['variables', 'data-types', 'operators']
+        },
+        {
+          id: 'js-2',
+          title: 'Functions and Scope',
+          description: 'Master function declarations, expressions, arrow functions, and understand scope concepts',
+          estimatedDuration: 180,
+          prerequisites: ['js-1'],
+          skills: ['functions', 'scope', 'closures']
+        },
+        {
+          id: 'js-3',
+          title: 'Objects and Arrays',
+          description: 'Work with complex data structures, object methods, and array manipulation',
+          estimatedDuration: 150,
+          prerequisites: ['js-1'],
+          skills: ['objects', 'arrays', 'methods']
+        },
+        {
+          id: 'js-4',
+          title: 'DOM Manipulation',
+          description: 'Learn to interact with HTML elements and handle user events',
+          estimatedDuration: 200,
+          prerequisites: ['js-2', 'js-3'],
+          skills: ['dom', 'events', 'html-interaction']
+        }
+      ],
+      'javascriptfundamentals': [
+        {
+          id: 'jsf-1',
+          title: 'JavaScript Basics',
+          description: 'Introduction to JavaScript syntax, variables, and basic programming concepts',
+          estimatedDuration: 120,
+          prerequisites: [],
+          skills: ['syntax', 'variables', 'basic-programming']
+        },
+        {
+          id: 'jsf-2',
+          title: 'Control Structures',
+          description: 'Learn conditional statements, loops, and program flow control',
+          estimatedDuration: 150,
+          prerequisites: ['jsf-1'],
+          skills: ['conditionals', 'loops', 'control-flow']
+        },
+        {
+          id: 'jsf-3',
+          title: 'Functions and Methods',
+          description: 'Understanding function creation, parameters, return values, and built-in methods',
+          estimatedDuration: 180,
+          prerequisites: ['jsf-2'],
+          skills: ['functions', 'parameters', 'methods']
+        }
+      ],
+      'python': [
+        {
+          id: 'py-1',
+          title: 'Python Syntax and Variables',
+          description: 'Learn Python syntax, variable assignment, and basic data types',
+          estimatedDuration: 120,
+          prerequisites: [],
+          skills: ['python-syntax', 'variables', 'data-types']
+        },
+        {
+          id: 'py-2',
+          title: 'Control Flow and Functions',
+          description: 'Master if statements, loops, and function definitions in Python',
+          estimatedDuration: 180,
+          prerequisites: ['py-1'],
+          skills: ['control-flow', 'functions', 'loops']
+        }
+      ],
+      'mathematics': [
         {
           id: 'math-1',
           title: 'Number Systems and Operations',
@@ -465,7 +545,7 @@ export class LearningPathService {
           skills: ['variables', 'equations', 'problem-solving']
         }
       ],
-      science: [
+      'science': [
         {
           id: 'sci-1',
           title: 'Scientific Method',
@@ -474,20 +554,26 @@ export class LearningPathService {
           prerequisites: [],
           skills: ['observation', 'hypothesis', 'experimentation']
         }
-      ],
-      programming: [
-        {
-          id: 'prog-1',
-          title: 'Programming Fundamentals',
-          description: 'Basic concepts of programming including variables and control structures',
-          estimatedDuration: 240,
-          prerequisites: [],
-          skills: ['variables', 'loops', 'conditionals', 'functions']
-        }
       ]
     };
 
-    return baseObjectives[subject.toLowerCase()] || [];
+    // Try to find objectives for the subject
+    let objectives = baseObjectives[subjectKey] || [];
+    
+    // If no specific objectives found, create generic ones based on goals
+    if (objectives.length === 0) {
+      objectives = goals.map((goal, index) => ({
+        id: `obj-${index + 1}`,
+        title: `${subject} - ${goal.objective}`,
+        description: `Learn and master: ${goal.objective}`,
+        estimatedDuration: 120 + (index * 30), // Increasing duration
+        prerequisites: index > 0 ? [`obj-${index}`] : [],
+        skills: [goal.objective.toLowerCase().replace(/\s+/g, '-')]
+      }));
+    }
+
+    logger.info(`Generated ${objectives.length} fallback objectives for subject: ${subject}`);
+    return objectives;
   }
 
   private generateMilestones(objectives: LearningObjective[]): Milestone[] {
@@ -579,35 +665,89 @@ export class LearningPathService {
 
   private async callAIServiceForPathGeneration(userProfile: any, pathData: CreateLearningPathRequest): Promise<any> {
     try {
+      // Map our education levels to AI service format
+      const educationLevelMap: Record<string, string> = {
+        'elementary': 'elementary',
+        'k-5': 'elementary', 
+        'middle_school': 'middle_school',
+        '6-8': 'middle_school',
+        'high_school': 'high_school',
+        '9-12': 'high_school',
+        'college': 'college',
+        'university': 'college',
+        'graduate': 'graduate',
+        'professional': 'professional'
+      };
+
+      // Map difficulty levels to AI service format
+      const difficultyMap: Record<string, string> = {
+        'BEGINNER': 'beginner',
+        'INTERMEDIATE': 'intermediate', 
+        'ADVANCED': 'advanced',
+        'EXPERT': 'expert'
+      };
+
+      // Map learning styles to AI service format
+      const learningStyleMap: Record<string, string> = {
+        'visual': 'visual',
+        'auditory': 'auditory',
+        'kinesthetic': 'kinesthetic',
+        'reading': 'reading'
+      };
+
+      const requestBody = {
+        user_id: pathData.userId,
+        subject: pathData.subject,
+        education_level: educationLevelMap[userProfile.demographics.educationLevel] || 'college',
+        current_level: difficultyMap[pathData.currentLevel] || 'beginner',
+        learning_goals: pathData.goals.map(goal => goal.objective),
+        time_commitment: Math.floor((userProfile.learningPreferences?.sessionDuration || 45) / 60) || 1, // Convert minutes to hours
+        learning_style: learningStyleMap[userProfile.learningPreferences?.learningStyle?.[0]] || 'visual',
+        prerequisites: []
+      };
+
+      logger.info('Calling AI service for path generation', { requestBody });
+
       const response = await fetch(`${this.aiServiceUrl}/api/v1/learning-paths/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_id: pathData.userId,
-          subject: pathData.subject,
-          education_level: userProfile.demographics.educationLevel,
-          learning_goals: pathData.goals.map(goal => goal.objective),
-          time_commitment: userProfile.learningPreferences.sessionDuration || 45,
-          learning_style: userProfile.learningPreferences.learningStyle || ['visual'],
-          current_level: pathData.currentLevel
-        }),
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(15000) // 15 second timeout
       });
 
       if (!response.ok) {
-        throw new Error(`AI service responded with status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`AI service responded with status: ${response.status}, body: ${errorText}`);
       }
 
       const result = await response.json();
+      logger.info('AI service response received', { 
+        pathId: result.path_id,
+        objectiveCount: result.objectives?.length || 0 
+      });
+
+      // Convert AI service objectives to our format
+      const objectives = (result.objectives || []).map((obj: any) => ({
+        id: obj.id,
+        title: obj.title,
+        description: obj.description,
+        estimatedDuration: (obj.estimated_hours || 2) * 60, // Convert hours to minutes
+        prerequisites: obj.prerequisites || [],
+        skills: obj.skills_gained || []
+      }));
+
       return {
-        objectives: result.objectives || pathData.objectives,
-        milestones: this.generateMilestones(result.objectives || pathData.objectives),
-        currentLevel: result.difficulty_progression ? this.parseDifficultyLevel(result.difficulty_progression) : pathData.currentLevel
+        objectives,
+        milestones: this.generateMilestones(objectives),
+        currentLevel: this.parseDifficultyLevel(result.difficulty_progression) || pathData.currentLevel
       };
     } catch (error) {
-      logger.warn('Failed to call AI service for path generation', { error });
+      logger.error('Failed to call AI service for path generation', { 
+        error: error instanceof Error ? error.message : error,
+        aiServiceUrl: this.aiServiceUrl 
+      });
       throw error;
     }
   }

@@ -49,7 +49,7 @@ async def get_recommendations(
 ):
     """Get content recommendations using AI and algorithmic enhancement."""
     try:
-        recommendations = await ai_service.get_content_recommendations(request, strategy=strategy)
+        recommendations = await ai_service.generate_content_recommendations(request)
         
         return ContentRecommendationResponse(
             user_id=request.user_id,

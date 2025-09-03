@@ -17,14 +17,22 @@ import {
 jest.mock('../../repositories/user.repository');
 jest.mock('../../utils/logger');
 
+// Mock the constructor to allow dependency injection
+const mockUserRepository = {
+  findById: jest.fn(),
+  findByUsername: jest.fn(),
+  update: jest.fn(),
+  deactivate: jest.fn(),
+  create: jest.fn(),
+} as jest.Mocked<UserRepository>;
+
 describe('UserService', () => {
   let userService: UserService;
-  let mockUserRepository: jest.Mocked<UserRepository>;
 
   beforeEach(() => {
-    mockUserRepository = new UserRepository() as jest.Mocked<UserRepository>;
     userService = new UserService();
     (userService as any).userRepository = mockUserRepository;
+    jest.clearAllMocks();
   });
 
   afterEach(() => {

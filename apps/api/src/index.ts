@@ -15,9 +15,19 @@ import { createAdaptiveDifficultyRoutes } from './routes/adaptive-difficulty.rou
 import { createCollaborationRoutes } from './routes';
 import { createSafetyModerationRoutes } from './routes/safety-moderation.routes';
 import { createContentRoutes } from './routes/content.routes';
+import { contentRecommendationsRouter } from './routes/content-recommendations.routes';
 import { createOnboardingRoutes } from './routes/onboarding.routes';
+import { createGoalsRoutes } from './routes/goals.routes';
 import { errorHandler, setupGlobalErrorHandlers } from './middleware/error-handler';
-import { monitoringMiddleware, securityMonitoringMiddleware, createMetricsEndpoint, createDetailedMetricsEndpoint } from './middleware/monitoring';
+import { 
+  requestIdMiddleware, 
+  performanceMiddleware, 
+  errorMonitoringMiddleware,
+  healthTrackingMiddleware,
+  startMemoryMonitoring,
+  startCPUMonitoring
+} from './middleware/monitoring';
+import monitoringRouter from './routes/monitoring';
 import { HealthCheckService } from './services/health-check.service';
 import { PerformanceMonitoringService } from './services/performance-monitoring.service';
 import { createMonitoringRoutes } from './routes/monitoring.routes';
@@ -54,8 +64,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Monitoring middleware (after security, before routes)
-app.use(monitoringMiddleware);
-app.use(securityMonitoringMiddleware);
+app.use(requestIdMiddleware);
+app.use(performanceMiddleware);
+app.use(healthTrackingMiddleware);
 
 // Setup global error handlers
 setupGlobalErrorHandlers();
@@ -188,6 +199,16 @@ const routeConfigs: RouteConfig[] = [
     }
   },
   {
+    path: '/content',
+    router: contentRecommendationsRouter,
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 60 // Higher limit for content recommendations
+    }
+  },
+  {
     path: '/safety',
     router: createSafetyModerationRoutes(db.getPool()),
     version: 'v1',
@@ -199,7 +220,7 @@ const routeConfigs: RouteConfig[] = [
   },
   {
     path: '/monitoring',
-    router: createMonitoringRoutes(),
+    router: monitoringRouter,
     version: 'v1',
     requiresAuth: false, // Health checks should be accessible without auth
     rateLimit: {
@@ -215,6 +236,16 @@ const routeConfigs: RouteConfig[] = [
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 30 // Limited for onboarding endpoints
+    }
+  },
+  {
+    path: '/goals',
+    router: createGoalsRoutes(),
+    version: 'v1',
+    requiresAuth: true,
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 40 // Moderate limit for goal operations
     }
   }
 ];
@@ -235,11 +266,12 @@ app.get('/api/v1/collaboration/active-sessions', (req, res) => {
   });
 });
 
-// Monitoring endpoints
-app.get('/api/metrics', createMetricsEndpoint());
-app.get('/api/metrics/detailed', createDetailedMetricsEndpoint());
+// Start system monitoring
+startMemoryMonitoring();
+startCPUMonitoring();
 
 // Error handling middleware (must be last)
+app.use(errorMonitoringMiddleware);
 app.use(errorHandler);
 
 // 404 handler

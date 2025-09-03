@@ -99,7 +99,7 @@ class HealthService:
         redis_result = await self._check_redis()
         health_results['services']['redis'] = redis_result
         
-        # Check AI provider (OpenAI or Gemini)
+        # Check AI provider (NVIDIA, OpenAI, or Gemini)
         ai_result = await self._check_ai_provider()
         health_results['services']['ai_provider'] = ai_result
         
@@ -329,7 +329,43 @@ class HealthService:
         """Check AI provider connectivity and performance."""
         start_time = datetime.now()
         
-        # Try OpenAI first if available
+        # Try NVIDIA first if available (new default)
+        if settings.NVIDIA_API_KEY and settings.NVIDIA_API_KEY != "your-nvidia-api-key":
+            try:
+                # Import NVIDIA service for health check
+                from .nvidia_service import NVIDIAService
+                nvidia_service = NVIDIAService()
+                await nvidia_service.initialize()
+                
+                # Test basic API call
+                response = await nvidia_service._make_nvidia_request(
+                    messages=[{"role": "user", "content": "Health check test"}],
+                    max_tokens=5,
+                    temperature=0
+                )
+                
+                if not response or not (response.get("content") or response.get("reasoning")):
+                    raise Exception("NVIDIA API returned empty response")
+                
+                latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+                
+                status = 'healthy'
+                if latency_ms > 5000:  # 5 seconds
+                    status = 'degraded'
+                
+                return {
+                    'status': status,
+                    'latency_ms': latency_ms,
+                    'provider': 'nvidia',
+                    'model': 'gpt-oss',
+                    'error': None
+                }
+                
+            except Exception as e:
+                logger.warning(f"NVIDIA health check failed: {e}")
+                # Fall back to OpenAI check
+        
+        # Try OpenAI if NVIDIA is not available or failed
         if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your-openai-api-key":
             try:
                 # Test basic API call
@@ -369,7 +405,7 @@ class HealthService:
                 logger.warning(f"OpenAI health check failed: {e}")
                 # Fall back to Gemini check
         
-        # Try Gemini if OpenAI is not available or failed
+        # Try Gemini if NVIDIA and OpenAI are not available or failed
         if settings.GEMINI_API_KEY:
             try:
                 # Import Gemini service for health check
@@ -400,7 +436,7 @@ class HealthService:
             except Exception as e:
                 logger.warning(f"Gemini health check failed: {e}")
         
-        # If both providers fail, return degraded status
+        # If all providers fail, return degraded status
         return {
             'status': 'degraded',
             'latency_ms': int((datetime.now() - start_time).total_seconds() * 1000),

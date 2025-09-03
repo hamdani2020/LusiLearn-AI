@@ -1,0 +1,84 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # API Service logs
+  - job_name: api-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: api-service
+          service: lusilearn-api
+          __path__: /var/log/lusilearn/api/*.log
+
+  # AI Service logs
+  - job_name: ai-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ai-service
+          service: lusilearn-ai
+          __path__: /var/log/lusilearn/ai-service/*.log
+
+  # System logs
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          service: lusilearn-system
+          __path__: /var/log/lusilearn/*.log
+
+  # Performance logs
+  - job_name: performance
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: performance
+          service: lusilearn-performance
+          log_type: performance
+          __path__: /var/log/lusilearn/*/performance.log
+
+  # Security logs
+  - job_name: security
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: security
+          service: lusilearn-security
+          log_type: security
+          __path__: /var/log/lusilearn/*/security.log
+
+  # AI usage logs
+  - job_name: ai-usage
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ai-usage
+          service: lusilearn-ai-usage
+          log_type: ai_usage
+          __path__: /var/log/lusilearn/*/ai-usage.log
+
+  # Analytics logs
+  - job_name: analytics
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: analytics
+          service: lusilearn-analytics
+          log_type: analytics
+          __path__: /var/log/lusilearn/*/analytics.log
