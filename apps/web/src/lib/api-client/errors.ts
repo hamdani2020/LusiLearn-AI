@@ -278,11 +278,22 @@ export const errorMessages: ErrorMessageConfig = {
     action: 'Retry',
     severity: 'error'
   },
+  'AUTHENTICATION_ERROR': {
+    title: 'Session Expired',
+    message: 'Your session has expired. Please log in again.',
+    action: 'Log In',
+    severity: 'warning'
+  },
   'AUTHENTICATION_FAILED': {
     title: 'Session Expired',
     message: 'Your session has expired. Please log in again.',
     action: 'Log In',
     severity: 'warning'
+  },
+  'AUTHORIZATION_ERROR': {
+    title: 'Access Denied',
+    message: 'You don\'t have permission to access this resource.',
+    severity: 'error'
   },
   'AUTHORIZATION_DENIED': {
     title: 'Access Denied',
@@ -293,6 +304,11 @@ export const errorMessages: ErrorMessageConfig = {
     title: 'Invalid Data',
     message: 'Please check your input and try again.',
     severity: 'warning'
+  },
+  'RATE_LIMIT_ERROR': {
+    title: 'Too Many Requests',
+    message: 'You\'re making requests too quickly. Please wait a moment.',
+    severity: 'info'
   },
   'RATE_LIMIT_EXCEEDED': {
     title: 'Too Many Requests',

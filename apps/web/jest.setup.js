@@ -1,5 +1,6 @@
 // Jest setup for web package
 require('jest-environment-jsdom');
+require('@testing-library/jest-dom');
 
 // Mock localStorage
 const localStorageMock = {

@@ -8,6 +8,9 @@ export { useSafetyModeration } from './use-safety-moderation';
 export { useMonitoring } from './use-monitoring';
 export { useAuth } from './use-auth';
 
+// Export base hook utilities
+export * from './base';
+
 // Re-export existing hooks (excluding duplicates)
 export { 
   useLearningPath, 
