@@ -102,6 +102,18 @@ export class EnhancedApiError extends Error implements ApiError {
       true
     );
   }
+
+  static fromValidationError(error: any, requestId?: string): EnhancedApiError {
+    const validationDetails = error.validationErrors || [];
+    return new EnhancedApiError(
+      error.message || 'Validation failed',
+      ErrorType.VALIDATION,
+      400,
+      { validationErrors: validationDetails },
+      requestId,
+      false
+    );
+  }
 }
 
 // Network Error Recovery Strategy

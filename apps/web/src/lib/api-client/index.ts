@@ -25,7 +25,7 @@ const defaultApiClient = createApiClient();
 const defaultBatchManager = new BatchRequestManager(defaultApiClient);
 const defaultUploadManager = new FileUploadManager(defaultApiClient);
 
-export { 
+export {
   defaultApiClient as apiClient,
   defaultBatchManager as batchManager,
   defaultUploadManager as uploadManager
@@ -41,24 +41,24 @@ export function createEnhancedApiClient(config?: any) {
     client,
     batchManager,
     uploadManager,
-    
+
     // Convenience methods
     get: client.get.bind(client),
     post: client.post.bind(client),
     put: client.put.bind(client),
     delete: client.delete.bind(client),
     patch: client.patch.bind(client),
-    
+
     batch: batchManager.executeBatch.bind(batchManager),
     upload: uploadManager.uploadFile.bind(uploadManager),
     uploadMultiple: uploadManager.uploadMultipleFiles.bind(uploadManager),
-    
+
     // Configuration
     setAuthToken: client.setAuthToken.bind(client),
     clearAuthToken: client.clearAuthToken.bind(client),
     addInterceptor: client.addInterceptor.bind(client),
     clearCache: client.clearCache.bind(client),
-    
+
     // Monitoring
     getMetrics: client.getMetrics.bind(client),
     getRequestHistory: client.getRequestHistory.bind(client),
