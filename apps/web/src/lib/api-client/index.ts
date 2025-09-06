@@ -6,6 +6,7 @@ export * from './cache';
 export * from './client';
 export * from './batch';
 export * from './upload';
+export * from './request-optimization';
 
 // Re-export main classes for convenience
 export { EnhancedApiClient, createApiClient } from './client';
@@ -14,6 +15,7 @@ export { MetricsCollector, ApiLogger } from './metrics';
 export { MemoryCache, LocalStorageCache, MultiTierCacheManager } from './cache';
 export { BatchRequestManager } from './batch';
 export { FileUploadManager } from './upload';
+export { RequestOptimizationManager, createRequestOptimizationManager } from './request-optimization';
 
 // Default configured instances
 import { createApiClient } from './client';
@@ -63,7 +65,11 @@ export function createEnhancedApiClient(config?: any) {
     getMetrics: client.getMetrics.bind(client),
     getRequestHistory: client.getRequestHistory.bind(client),
     isHealthy: client.isHealthy.bind(client),
-    enableDebugMode: client.enableDebugMode.bind(client)
+    enableDebugMode: client.enableDebugMode.bind(client),
+
+    // Request optimization
+    getOptimizationStats: client.getOptimizationStats.bind(client),
+    clearOptimizationQueues: client.clearOptimizationQueues.bind(client)
   };
 }
 

@@ -17,6 +17,7 @@ import {
 import { EnhancedApiError, ErrorRecoveryManager } from './errors';
 import { MetricsCollector, ApiLogger } from './metrics';
 import { MultiTierCacheManager, CacheManager } from './cache';
+import { RequestOptimizationManager, createRequestOptimizationManager } from './request-optimization';
 
 export class EnhancedApiClient implements ApiClient {
     private config: ApiClientConfig;
@@ -24,6 +25,7 @@ export class EnhancedApiClient implements ApiClient {
     private metricsCollector: MetricsCollector;
     private logger: ApiLogger;
     private errorRecoveryManager: ErrorRecoveryManager;
+    private requestOptimizationManager: RequestOptimizationManager;
     private interceptors: RequestInterceptor[] = [];
     private authToken: string | null = null;
     private refreshTokenCallback?: () => Promise<string>;
@@ -45,6 +47,7 @@ export class EnhancedApiClient implements ApiClient {
         this.metricsCollector = new MetricsCollector();
         this.logger = new ApiLogger(this.config.enableLogging);
         this.errorRecoveryManager = new ErrorRecoveryManager(this.refreshTokenCallback);
+        this.requestOptimizationManager = createRequestOptimizationManager();
 
         // Initialize auth token from localStorage
         if (typeof window !== 'undefined') {
@@ -311,6 +314,17 @@ export class EnhancedApiClient implements ApiClient {
         this.metricsCollector.reset();
     }
 
+    // Request optimization methods
+    getOptimizationStats() {
+        return this.requestOptimizationManager.getOptimizationStats();
+    }
+
+    clearOptimizationQueues(): void {
+        this.requestOptimizationManager.clearPendingRequests();
+        this.requestOptimizationManager.clearBatchQueue();
+        this.requestOptimizationManager.clearPriorityQueue();
+    }
+
     // Health and debugging
     async isHealthy(): Promise<boolean> {
         try {
@@ -377,6 +391,20 @@ export class EnhancedApiClient implements ApiClient {
         context: RequestContext,
         data?: any
     ): Promise<ApiResponse<T>> {
+        // Use request optimization for the actual execution
+        return this.requestOptimizationManager.prioritizeRequest(
+            context.endpoint,
+            context.method,
+            data,
+            context.options,
+            () => this.executeOptimizedRequest<T>(context, data)
+        );
+    }
+
+    private async executeOptimizedRequest<T>(
+        context: RequestContext,
+        data?: any
+    ): Promise<ApiResponse<T>> {
         const startTime = Date.now();
         let response: Response;
         let responseData: any;
@@ -436,7 +464,7 @@ export class EnhancedApiClient implements ApiClient {
                 // Try error recovery
                 if (error.recoverable && await this.errorRecoveryManager.attemptRecovery(error, context)) {
                     context.retryCount++;
-                    return this.executeRequest<T>(context, data);
+                    return this.executeOptimizedRequest<T>(context, data);
                 }
 
                 throw error;

@@ -678,4 +678,5 @@ export function createTypedApiClient(client: EnhancedApiClient): TypedApiClient 
  * Default typed API client instance
  * Uses the default enhanced API client with validation middleware
  */
+
 export const typedApiClient = new TypedApiClient(new EnhancedApiClient());
