@@ -106,7 +106,7 @@ export class AICostMonitor {
       // Update running totals
       await this.updateRunningTotals(record, today, month);
     } catch (error) {
-      logger.error('Failed to store AI usage record', { error: error.message, record });
+      logger.error('Failed to store AI usage record', { error: (error as Error).message, record });
     }
   }
 
@@ -129,7 +129,7 @@ export class AICostMonitor {
         await this.redis.expire(`ai_cost:user:${record.userId}:${today}`, 86400 * 30);
       }
     } catch (error) {
-      logger.error('Failed to update running totals', { error: error.message, record });
+      logger.error('Failed to update running totals', { error: (error as Error).message, record });
     }
   }
 
@@ -179,7 +179,7 @@ export class AICostMonitor {
         }
       }
     } catch (error) {
-      logger.error('Failed to check budget alerts', { error: error.message });
+      logger.error('Failed to check budget alerts', { error: (error as Error).message });
     }
   }
 
@@ -211,7 +211,7 @@ export class AICostMonitor {
       const cost = await this.redis.get(`ai_cost:daily:${today}`);
       return parseFloat(cost || '0');
     } catch (error) {
-      logger.error('Failed to get daily cost', { error: error.message, date: today });
+      logger.error('Failed to get daily cost', { error: (error as Error).message, date: today });
       return 0;
     }
   }
@@ -225,7 +225,7 @@ export class AICostMonitor {
       const cost = await this.redis.get(`ai_cost:monthly:${currentMonth}`);
       return parseFloat(cost || '0');
     } catch (error) {
-      logger.error('Failed to get monthly cost', { error: error.message, month: currentMonth });
+      logger.error('Failed to get monthly cost', { error: (error as Error).message, month: currentMonth });
       return 0;
     }
   }
@@ -239,7 +239,7 @@ export class AICostMonitor {
       const cost = await this.redis.get(`ai_cost:user:${userId}:${today}`);
       return parseFloat(cost || '0');
     } catch (error) {
-      logger.error('Failed to get user daily cost', { error: error.message, userId, date: today });
+      logger.error('Failed to get user daily cost', { error: (error as Error).message, userId, date: today });
       return 0;
     }
   }
@@ -289,7 +289,7 @@ export class AICostMonitor {
 
       return stats;
     } catch (error) {
-      logger.error('Failed to get usage stats', { error: error.message, period });
+      logger.error('Failed to get usage stats', { error: (error as Error).message, period });
       return {
         totalCost: 0,
         totalTokens: 0,

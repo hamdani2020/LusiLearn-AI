@@ -53,7 +53,8 @@ export class RedisService {
   }
 
   async incrbyfloat(key: string, increment: number): Promise<number> {
-    return await this.client.incrByFloat(key, increment);
+    const result = await this.client.incrByFloat(key, increment);
+    return parseFloat(result);
   }
 
   async zadd(key: string, score: number, member: string): Promise<number> {

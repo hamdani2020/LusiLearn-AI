@@ -25,8 +25,8 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
   req.startTime = Date.now();
   
   // Override res.end to capture response time
-  const originalEnd = res.end;
-  res.end = function(chunk?: any, encoding?: any) {
+  const originalEnd = res.end.bind(res);
+  res.end = function(chunk?: any, encoding?: any, cb?: () => void): Response {
     const duration = Date.now() - req.startTime;
     
     // Log performance metrics
@@ -56,8 +56,8 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
       });
     }
 
-    // Call original end method
-    originalEnd.call(this, chunk, encoding);
+    // Call original end method and return the response
+    return originalEnd(chunk, encoding, cb);
   };
 
   next();

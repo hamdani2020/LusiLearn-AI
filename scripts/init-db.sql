@@ -14,12 +14,15 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    education_level education_level NOT NULL,
-    age_range VARCHAR(20) NOT NULL,
-    timezone VARCHAR(50) DEFAULT 'UTC',
-    preferred_language VARCHAR(10) DEFAULT 'en',
+    demographics JSONB NOT NULL DEFAULT '{}'::jsonb,
+    learning_preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
+    skill_profile JSONB DEFAULT '[]'::jsonb,
+    privacy_settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+    parental_controls JSONB,
     is_verified BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    onboarding_completed BOOLEAN DEFAULT FALSE,
+    onboarding_completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -80,7 +83,10 @@ CREATE TABLE IF NOT EXISTS study_groups (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_education_level ON users(education_level);
+CREATE INDEX IF NOT EXISTS idx_users_demographics_gin ON users USING gin(demographics);
+CREATE INDEX IF NOT EXISTS idx_users_learning_preferences_gin ON users USING gin(learning_preferences);
+CREATE INDEX IF NOT EXISTS idx_users_skill_profile_gin ON users USING gin(skill_profile);
+CREATE INDEX IF NOT EXISTS idx_users_privacy_settings_gin ON users USING gin(privacy_settings);
 CREATE INDEX IF NOT EXISTS idx_learning_paths_user_id ON learning_paths(user_id);
 CREATE INDEX IF NOT EXISTS idx_learning_paths_subject ON learning_paths(subject);
 CREATE INDEX IF NOT EXISTS idx_content_items_source ON content_items(source);

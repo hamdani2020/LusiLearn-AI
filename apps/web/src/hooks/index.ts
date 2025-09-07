@@ -8,6 +8,13 @@ export { useSafetyModeration } from './use-safety-moderation';
 export { useMonitoring } from './use-monitoring';
 export { useAuth } from './use-auth';
 
+// Export real-time communication hooks
+export { useRealTimeCollaboration } from './use-real-time-collaboration';
+export { useConnectionState } from './use-connection-state';
+
+// Export base hook utilities
+export * from './base';
+
 // Re-export existing hooks (excluding duplicates)
 export { 
   useLearningPath, 

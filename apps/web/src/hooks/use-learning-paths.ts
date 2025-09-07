@@ -1,158 +1,254 @@
-import { useState, useCallback } from 'react';
-import { learningPathApi, LearningPath, CreateLearningPathRequest, UpdateLearningPathRequest } from '@/lib/api-extended';
+import { useState, useCallback, useEffect } from 'react';
+import { 
+  learningPathApi, 
+  LearningPath, 
+  CreateLearningPathRequest, 
+  UpdateLearningPathRequest,
+  ShareLearningPathRequest 
+} from '@/lib/api-extended';
+import { 
+  useBaseHook, 
+  useCrudOperations,
+  useApiCall,
+  globalStateRegistry,
+  BaseHookState,
+  BaseHookActions
+} from './base';
 
-export function useLearningPaths() {
-  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
+// Enhanced Learning Paths Hook Interface
+export interface UseLearningPathsReturn extends BaseHookState<LearningPath[]>, BaseHookActions {
+  // Data
+  learningPaths: LearningPath[];
+  currentPath: LearningPath | null;
+  
+  // Computed
+  hasLearningPaths: boolean;
+  totalPaths: number;
+  completedPaths: number;
+  activePaths: number;
+  currentPathId?: string;
+  
+  // Actions
+  fetchLearningPaths: () => Promise<LearningPath[] | null>;
+  fetchLearningPath: (id: string) => Promise<LearningPath | null>;
+  createLearningPath: (data: CreateLearningPathRequest) => Promise<LearningPath | null>;
+  updateLearningPath: (id: string, data: UpdateLearningPathRequest) => Promise<LearningPath | null>;
+  deleteLearningPath: (id: string) => Promise<boolean>;
+  shareLearningPath: (id: string, shareData: ShareLearningPathRequest) => Promise<boolean>;
+  setCurrentPath: (path: LearningPath | null) => void;
+  
+  // Optimistic updates
+  optimisticUpdate: (id: string, data: Partial<LearningPath>) => void;
+  rollbackOptimisticUpdate: (id: string) => void;
+  confirmOptimisticUpdate: (id: string) => void;
+  getPendingUpdates: () => any[];
+  
+  // State synchronization
+  syncWithGlobalState: () => void;
+  subscribeToGlobalChanges: (callback: (paths: LearningPath[]) => void) => () => void;
+}
+
+export function useLearningPaths(): UseLearningPathsReturn {
+  // Current path state (separate from the list)
   const [currentPath, setCurrentPath] = useState<LearningPath | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Get all learning paths
-  const fetchLearningPaths = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.getAll();
-      if (response.success && response.data) {
-        setLearningPaths(response.data);
-      } else {
-        setError(response.message || 'Failed to fetch learning paths');
+  // CRUD operations for learning paths
+  const crudOps = useCrudOperations<LearningPath, CreateLearningPathRequest, UpdateLearningPathRequest>({
+    endpoints: {
+      getAll: '/api/v1/learning-paths',
+      getById: '/api/v1/learning-paths/:id',
+      create: '/api/v1/learning-paths',
+      update: '/api/v1/learning-paths/:id',
+      delete: '/api/v1/learning-paths/:id'
+    },
+    cacheKey: 'learning-paths',
+    enableOptimisticUpdates: true,
+    autoFetch: true,
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 2 * 60 * 1000,   // 2 minutes
+    onSuccess: (data) => {
+      // Sync with global state when data changes
+      if (Array.isArray(data)) {
+        globalStateRegistry.getState<LearningPath[]>('learning-paths').set(data);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
+  });
+
+  // Individual path fetching
+  const pathFetchCall = useApiCall<LearningPath>({
+    endpoint: '/api/v1/learning-paths/:id',
+    method: 'GET',
+    autoFetch: false,
+    cacheTime: 5 * 60 * 1000,
+    onSuccess: (path) => {
+      setCurrentPath(path);
+      // Update the path in the main list if it exists
+      if (crudOps.data) {
+        const updatedPaths = crudOps.data.map(p => p.id === path.id ? path : p);
+        globalStateRegistry.getState<LearningPath[]>('learning-paths').set(updatedPaths);
+      }
+    }
+  });
+
+  // Sharing functionality
+  const shareCall = useApiCall<any>({
+    endpoint: '/api/v1/learning-paths/:id/share',
+    method: 'POST',
+    autoFetch: false
+  });
+
+  // Fetch all learning paths
+  const fetchLearningPaths = useCallback(async (): Promise<LearningPath[] | null> => {
+    return await crudOps.fetchAll();
+  }, [crudOps]);
+
+  // Fetch specific learning path
+  const fetchLearningPath = useCallback(async (id: string): Promise<LearningPath | null> => {
+    const endpoint = pathFetchCall.endpoint?.replace(':id', id) || '';
+    // Update the endpoint for this specific call
+    const result = await pathFetchCall.execute();
+    return result;
+  }, [pathFetchCall]);
+
+  // Create learning path with optimistic update
+  const createLearningPath = useCallback(async (data: CreateLearningPathRequest): Promise<LearningPath | null> => {
+    return await crudOps.create(data);
+  }, [crudOps]);
+
+  // Update learning path with optimistic update
+  const updateLearningPath = useCallback(async (id: string, data: UpdateLearningPathRequest): Promise<LearningPath | null> => {
+    const result = await crudOps.update(id, data);
+    
+    // Update current path if it's the one being updated
+    if (currentPath?.id === id && result) {
+      setCurrentPath(result);
+    }
+    
+    return result;
+  }, [crudOps, currentPath]);
+
+  // Delete learning path with optimistic update
+  const deleteLearningPath = useCallback(async (id: string): Promise<boolean> => {
+    const result = await crudOps.delete(id);
+    
+    // Clear current path if it's the one being deleted
+    if (currentPath?.id === id && result) {
+      setCurrentPath(null);
+    }
+    
+    return result;
+  }, [crudOps, currentPath]);
+
+  // Share learning path
+  const shareLearningPath = useCallback(async (id: string, shareData: ShareLearningPathRequest): Promise<boolean> => {
+    const endpoint = shareCall.endpoint?.replace(':id', id) || '';
+    const result = await shareCall.execute(shareData);
+    return !!result;
+  }, [shareCall]);
+
+  // Set current path
+  const setCurrentPathHandler = useCallback((path: LearningPath | null) => {
+    setCurrentPath(path);
   }, []);
 
-  // Get a specific learning path
-  const fetchLearningPath = useCallback(async (pathId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.getById(pathId);
-      if (response.success && response.data) {
-        setCurrentPath(response.data);
-        return response.data;
-      } else {
-        setError(response.message || 'Failed to fetch learning path');
-        return null;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return null;
-    } finally {
-      setLoading(false);
+  // Optimistic update methods
+  const optimisticUpdate = useCallback((id: string, data: Partial<LearningPath>) => {
+    if (crudOps.applyOptimisticUpdate) {
+      crudOps.applyOptimisticUpdate(id, data);
     }
+    
+    // Update current path if it matches
+    if (currentPath?.id === id) {
+      setCurrentPath({ ...currentPath, ...data });
+    }
+  }, [crudOps, currentPath]);
+
+  const rollbackOptimisticUpdate = useCallback((id: string) => {
+    if (crudOps.rollbackOptimisticUpdate) {
+      crudOps.rollbackOptimisticUpdate(id);
+    }
+    
+    // Refresh current path if it matches
+    if (currentPath?.id === id) {
+      fetchLearningPath(id);
+    }
+  }, [crudOps, currentPath, fetchLearningPath]);
+
+  const confirmOptimisticUpdate = useCallback((id: string) => {
+    if (crudOps.confirmOptimisticUpdate) {
+      crudOps.confirmOptimisticUpdate(id);
+    }
+  }, [crudOps]);
+
+  const getPendingUpdates = useCallback(() => {
+    return crudOps.getPendingUpdates ? crudOps.getPendingUpdates() : [];
+  }, [crudOps]);
+
+  // Global state synchronization
+  const syncWithGlobalState = useCallback(() => {
+    const globalState = globalStateRegistry.getState<LearningPath[]>('learning-paths');
+    const globalData = globalState.get();
+    
+    if (globalData && globalData !== crudOps.data) {
+      // Update local state with global state
+      if (crudOps.setData) {
+        crudOps.setData(globalData);
+      }
+    }
+  }, [crudOps]);
+
+  const subscribeToGlobalChanges = useCallback((callback: (paths: LearningPath[]) => void) => {
+    const globalState = globalStateRegistry.getState<LearningPath[]>('learning-paths');
+    return globalState.subscribe((data) => {
+      if (data) {
+        callback(data);
+      }
+    });
   }, []);
 
-  // Create a new learning path
-  const createLearningPath = useCallback(async (data: CreateLearningPathRequest) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.create(data);
-      if (response.success && response.data) {
-        setLearningPaths(prev => [...prev, response.data!]);
-        return response.data;
-      } else {
-        setError(response.message || 'Failed to create learning path');
-        return null;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Computed values
+  const learningPaths = crudOps.data || [];
+  const hasLearningPaths = learningPaths.length > 0;
+  const totalPaths = learningPaths.length;
+  const completedPaths = learningPaths.filter(path => 
+    path.milestones?.every(milestone => milestone.completed)
+  ).length;
+  const activePaths = totalPaths - completedPaths;
 
-  // Update a learning path
-  const updateLearningPath = useCallback(async (pathId: string, data: UpdateLearningPathRequest) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.update(pathId, data);
-      if (response.success && response.data) {
-        setLearningPaths(prev => 
-          prev.map(path => path.id === pathId ? response.data! : path)
-        );
-        if (currentPath?.id === pathId) {
-          setCurrentPath(response.data);
+  // Subscribe to global state changes on mount
+  useEffect(() => {
+    const unsubscribe = subscribeToGlobalChanges((paths) => {
+      // Update current path if it exists in the updated paths
+      if (currentPath) {
+        const updatedCurrentPath = paths.find(p => p.id === currentPath.id);
+        if (updatedCurrentPath && updatedCurrentPath !== currentPath) {
+          setCurrentPath(updatedCurrentPath);
         }
-        return response.data;
-      } else {
-        setError(response.message || 'Failed to update learning path');
-        return null;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPath]);
+    });
 
-  // Delete a learning path
-  const deleteLearningPath = useCallback(async (pathId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.delete(pathId);
-      if (response.success) {
-        setLearningPaths(prev => prev.filter(path => path.id !== pathId));
-        if (currentPath?.id === pathId) {
-          setCurrentPath(null);
-        }
-        return true;
-      } else {
-        setError(response.message || 'Failed to delete learning path');
-        return false;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPath]);
-
-  // Share a learning path
-  const shareLearningPath = useCallback(async (pathId: string, sharedWithUserId: string, permissions: 'view' | 'collaborate', message?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await learningPathApi.share(pathId, {
-        sharedWithUserId,
-        permissions,
-        message
-      });
-      if (response.success) {
-        return true;
-      } else {
-        setError(response.message || 'Failed to share learning path');
-        return false;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
+    return unsubscribe;
+  }, [currentPath, subscribeToGlobalChanges]);
 
   return {
-    // State
+    // Base state
+    data: learningPaths,
+    loading: crudOps.loading || pathFetchCall.loading || shareCall.loading,
+    error: crudOps.error || pathFetchCall.error || shareCall.error,
+    lastFetch: null, // Could be enhanced to track last fetch time
+    isStale: crudOps.isStale,
+
+    // Data
     learningPaths,
     currentPath,
-    loading,
-    error,
-    
+
+    // Computed
+    hasLearningPaths,
+    totalPaths,
+    completedPaths,
+    activePaths,
+    currentPathId: currentPath?.id,
+
     // Actions
     fetchLearningPaths,
     fetchLearningPath,
@@ -160,10 +256,20 @@ export function useLearningPaths() {
     updateLearningPath,
     deleteLearningPath,
     shareLearningPath,
-    clearError,
-    
-    // Computed
-    hasLearningPaths: learningPaths.length > 0,
-    currentPathId: currentPath?.id
+    setCurrentPath: setCurrentPathHandler,
+    clearError: crudOps.clearError,
+    clearData: crudOps.clearData,
+    refresh: crudOps.refresh,
+    invalidate: crudOps.invalidate,
+
+    // Optimistic updates
+    optimisticUpdate,
+    rollbackOptimisticUpdate,
+    confirmOptimisticUpdate,
+    getPendingUpdates,
+
+    // State synchronization
+    syncWithGlobalState,
+    subscribeToGlobalChanges
   };
 } 
