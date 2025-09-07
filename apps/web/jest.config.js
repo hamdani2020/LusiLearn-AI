@@ -11,7 +11,9 @@ module.exports = {
   },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: '<rootDir>/tsconfig.json'
+      tsconfig: {
+        jsx: 'react-jsx'
+      }
     }]
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],

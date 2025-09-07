@@ -18,6 +18,7 @@ import { EnhancedApiError, ErrorRecoveryManager } from './errors';
 import { MetricsCollector, ApiLogger } from './metrics';
 import { MultiTierCacheManager, CacheManager } from './cache';
 import { RequestOptimizationManager, createRequestOptimizationManager } from './request-optimization';
+import { apiInspector, performanceProfiler, requestLogger } from './debug';
 
 export class EnhancedApiClient implements ApiClient {
     private config: ApiClientConfig;
@@ -408,6 +409,7 @@ export class EnhancedApiClient implements ApiClient {
         const startTime = Date.now();
         let response: Response;
         let responseData: any;
+        let correlationId: string;
 
         try {
             // Build request config
@@ -416,13 +418,26 @@ export class EnhancedApiClient implements ApiClient {
             // Apply request interceptors
             const finalConfig = await this.applyRequestInterceptors(config, context);
 
-            this.logger.logRequest({
+            const requestMetadata = {
                 id: context.requestId,
                 endpoint: context.endpoint,
                 method: context.method,
                 timestamp: context.startTime,
                 retryCount: context.retryCount,
                 cached: false
+            };
+
+            this.logger.logRequest(requestMetadata);
+
+            // Enhanced debugging
+            correlationId = requestLogger.logRequest(requestMetadata, {
+                headers: finalConfig.headers as Record<string, string>,
+                payload: data
+            });
+            
+            apiInspector.recordRequest(requestMetadata, {
+                headers: finalConfig.headers as Record<string, string>,
+                body: data
             });
 
             // Make the request
@@ -457,6 +472,19 @@ export class EnhancedApiClient implements ApiClient {
             }
 
             this.logger.logResponse(metadata);
+
+            // Enhanced debugging
+            requestLogger.logResponse(metadata, {
+                headers: Object.fromEntries(response.headers.entries()),
+                payload: responseData
+            }, correlationId);
+            
+            apiInspector.recordRequest(metadata, undefined, {
+                headers: Object.fromEntries(response.headers.entries()),
+                body: responseData
+            });
+            
+            performanceProfiler.profileRequest(metadata);
 
             if (!response.ok) {
                 const error = EnhancedApiError.fromResponse(response, context.requestId);
@@ -514,11 +542,16 @@ export class EnhancedApiClient implements ApiClient {
 
             this.logger.logResponse(metadata);
 
+            // Enhanced error debugging
+            const enhancedError = error instanceof EnhancedApiError 
+                ? error 
+                : EnhancedApiError.fromNetworkError(error as Error, context.requestId);
+            
+            requestLogger.logError(enhancedError, metadata, correlationId);
+            apiInspector.recordError(enhancedError, metadata);
+
             // Apply error interceptors
-            const processedError = await this.applyErrorInterceptors(
-                error instanceof EnhancedApiError ? error : EnhancedApiError.fromNetworkError(error as Error, context.requestId),
-                context
-            );
+            const processedError = await this.applyErrorInterceptors(enhancedError, context);
 
             throw processedError;
         }

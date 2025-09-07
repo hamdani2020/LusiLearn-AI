@@ -2,6 +2,8 @@
 require('jest-environment-jsdom');
 require('@testing-library/jest-dom');
 
+// MSW will be imported in individual test files as needed
+
 // Mock localStorage
 const localStorageMock = {
   getItem: jest.fn(),
@@ -64,3 +66,5 @@ global.console = {
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:4000';
 process.env.NEXT_PUBLIC_AI_SERVICE_URL = 'http://localhost:8001';
 process.env.NODE_ENV = 'test';
+
+// MSW setup will be handled in individual test files
