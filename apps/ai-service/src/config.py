@@ -26,14 +26,18 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = Field(default="nvidia", description="AI provider: 'nvidia', 'openai', or 'gemini'")
     
     # NVIDIA Configuration (GPT-OSS)
-    NVIDIA_API_KEY: str = Field(default="", description="NVIDIA API key")
+    NVIDIA_API_KEY: str = Field(default="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", description="NVIDIA API key")
     NVIDIA_BASE_URL: str = Field(default="https://integrate.api.nvidia.com/v1", description="NVIDIA API base URL")
-    NVIDIA_MODEL: str = Field(default="openai/gpt-oss-20b", description="Default NVIDIA model")
-    NVIDIA_MAX_TOKENS: int = Field(default=1000, description="Max tokens per request")
-    NVIDIA_TEMPERATURE: float = Field(default=0.7, description="NVIDIA temperature")
-    NVIDIA_TOP_P: float = Field(default=0.9, description="NVIDIA top_p parameter")
-    NVIDIA_TIMEOUT: int = Field(default=30, description="NVIDIA request timeout in seconds")
+    NVIDIA_MODEL: str = Field(default="openai/gpt-oss-120b", description="Default NVIDIA model")
+    NVIDIA_MAX_TOKENS: int = Field(default=4096, description="Max tokens per request")
+    NVIDIA_TEMPERATURE: float = Field(default=1.0, description="NVIDIA temperature")
+    NVIDIA_TOP_P: float = Field(default=1.0, description="NVIDIA top_p parameter")
+    NVIDIA_TIMEOUT: int = Field(default=60, description="NVIDIA request timeout in seconds")
     NVIDIA_MAX_RETRIES: int = Field(default=3, description="Max retry attempts for NVIDIA")
+    
+    # YouTube API Configuration
+    YOUTUBE_API_KEY: str = Field(default="", description="YouTube Data API key")
+    YOUTUBE_SEARCH_URL: str = Field(default="https://www.googleapis.com/youtube/v3/search", description="YouTube search API URL")
     
     # OpenAI Configuration
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")

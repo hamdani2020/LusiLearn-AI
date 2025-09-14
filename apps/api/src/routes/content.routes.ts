@@ -110,33 +110,6 @@ export function createContentRoutes(pool: Pool): express.Router {
         }
     });
 
-    /**
-     * GET /api/v1/content/recommendations
-     * Get personalized content recommendations
-     */
-    router.get('/recommendations', authenticateToken, async (req: AuthenticatedRequest, res, next) => {
-        try {
-            const userId = req.user?.id;
-            if (!userId) {
-                throw new ValidationError('User not authenticated');
-            }
-
-            const { subject, limit = 10 } = req.query;
-
-            const recommendations = await contentService.getRecommendations(userId, {
-                subject: subject as string,
-                limit: parseInt(limit as string)
-            });
-
-            res.json({
-                success: true,
-                data: recommendations
-            });
-        } catch (error) {
-            logger.error('Error getting content recommendations:', error);
-            next(error);
-        }
-    });
 
     /**
      * GET /api/v1/content/:contentId

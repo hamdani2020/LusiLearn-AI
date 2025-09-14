@@ -105,8 +105,8 @@ export function ContentCard({
               <Badge variant="outline" className="text-xs">
                 {content.source.replace('_', ' ')}
               </Badge>
-              <Badge className={`text-xs ${getDifficultyColor(content.metadata.difficulty)}`}>
-                {content.metadata.difficulty}
+              <Badge className={`text-xs ${getDifficultyColor(content.metadata?.difficulty || 'beginner')}`}>
+                {content.metadata?.difficulty || 'beginner'}
               </Badge>
             </div>
             
@@ -149,18 +149,18 @@ export function ContentCard({
         {/* Metadata */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
           <div className="flex items-center gap-1">
-            {getFormatIcon(content.metadata.format)}
-            <span className="capitalize">{content.metadata.format}</span>
+            {getFormatIcon(content.metadata?.format || 'video')}
+            <span className="capitalize">{content.metadata?.format || 'video'}</span>
           </div>
           
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            <span>{formatDuration(content.metadata.duration)}</span>
+            <span>{formatDuration(content.metadata?.duration || 0)}</span>
           </div>
 
           <div className="flex items-center gap-1">
             <Star className="h-3 w-3 fill-current text-yellow-400" />
-            <span>{(content.qualityMetrics?.userRating || 0).toFixed(1)}</span>
+            <span>{(content.qualityMetrics?.userRating || 4.5).toFixed(1)}</span>
           </div>
         </div>
 
