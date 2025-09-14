@@ -141,7 +141,7 @@ async def get_provider_status(
 ):
     """Get status of all AI providers."""
     try:
-        return await ai_service.get_provider_status()
+        return ai_service.get_provider_status()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

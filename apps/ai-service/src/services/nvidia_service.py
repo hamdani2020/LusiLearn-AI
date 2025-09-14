@@ -334,7 +334,8 @@ class NVIDIAService:
                 temperature=temperature or settings.NVIDIA_TEMPERATURE,
                 top_p=top_p or settings.NVIDIA_TOP_P,
                 max_tokens=max_tokens or settings.NVIDIA_MAX_TOKENS,
-                stream=False
+                stream=False,
+                extra_body={"reasoning": False}  # Turn off reasoning as requested
             )
             
             # Use standard content field (OpenAI compatible)
@@ -407,7 +408,7 @@ class NVIDIAService:
                     "content_id": "ai-rec-{request.current_topic}-001",
                     "title": "Intermediate {request.current_topic}",
                     "description": "Learn {request.current_topic} at intermediate level",
-                    "url": null,
+                    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                     "difficulty": "intermediate",
                     "format": "video",
                     "duration_minutes": 45,

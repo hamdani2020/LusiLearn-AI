@@ -71,7 +71,7 @@ export default function LearningSessionPage({ params }: LearningSessionPageProps
     setIsContentLoading(true)
     try {
       // Fetch content recommendations from API
-      const response = await api.get(`/api/v1/content/recommendations/${objective.id}`)
+      const response = await api.get(`/api/v1/content-recommendations/recommendations/${objective.id}`)
       
       if (response.success && response.data) {
         console.log('Loaded content recommendations:', response.data)

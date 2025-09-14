@@ -98,6 +98,9 @@ export function createAIServiceClient() {
   });
 }
 
+// Create AI service client instance
+export const aiServiceClient = createAIServiceClient();
+
 // Global error handler setup
 export function setupGlobalErrorHandling() {
   // Handle unhandled promise rejections from API calls

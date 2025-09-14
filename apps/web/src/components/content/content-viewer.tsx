@@ -105,7 +105,7 @@ export function ContentViewer({
       }
     }
 
-    switch (content.metadata.format) {
+    switch (content.metadata?.format || 'video') {
       case ContentFormat.VIDEO:
         if (content.source === 'youtube') {
           // Extract YouTube video ID from URL

@@ -383,7 +383,7 @@ export const endpoints = {
   // Content endpoints
   content: {
     search: '/api/v1/content/search',
-    recommendations: (userId: string) => `/api/v1/content/recommendations`,
+    recommendations: (userId: string) => `/api/v1/content-recommendations/recommendations?userId=${userId}`,
     item: (contentId: string) => `/api/v1/content/${contentId}`,
     bookmark: (userId: string, contentId: string) => `/api/v1/content/users/${userId}/bookmarks/${contentId}`,
     bookmarks: (userId: string) => `/api/v1/content/users/${userId}/bookmarks`,

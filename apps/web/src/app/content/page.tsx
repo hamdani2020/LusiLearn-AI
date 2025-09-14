@@ -39,7 +39,7 @@ export default function ContentDiscoveryPage() {
     queryFn: async () => {
       if (!user?.id) return { success: false, data: [] }
       const response = await api.get<{ success: boolean; data: ContentRecommendation[] }>(
-        `${endpoints.content.recommendations(user.id)}?subject=programming&limit=10`
+        `${endpoints.content.recommendations(user.id)}&subject=programming&limit=10`
       )
       return response
     },

@@ -199,10 +199,10 @@ const routeConfigs: RouteConfig[] = [
     }
   },
   {
-    path: '/content',
+    path: '/content-recommendations',
     router: contentRecommendationsRouter,
     version: 'v1',
-    requiresAuth: true,
+    requiresAuth: false, // Some endpoints like search don't require auth
     rateLimit: {
       windowMs: 15 * 60 * 1000,
       max: 60 // Higher limit for content recommendations
