@@ -3,6 +3,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: lusilearn-postgres
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -19,44 +21,46 @@ services:
       retries: 3
 
   # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: lusilearn-redis
-    ports:
-      - "${REDIS_PORT}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: lusilearn-redis
+  #   ports:
+  #     - "${REDIS_PORT}:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # Elasticsearch for content search
-  elasticsearch:
-    image: elasticsearch:8.8.0
-    container_name: lusilearn-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f ${ELASTICSEARCH_URL}/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # elasticsearch:
+  #   image: elasticsearch:8.8.0
+  #   container_name: lusilearn-elasticsearch
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   ports:
+  #     - "9200:9200"
+  #   volumes:
+  #     - elasticsearch_data:/usr/share/elasticsearch/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f ${ELASTICSEARCH_URL}/_cluster/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # Web Application (Next.js)
-  web:
+  frontend:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       target: development
     container_name: lusilearn-web
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     volumes:
@@ -77,6 +81,8 @@ services:
       dockerfile: apps/api/Dockerfile
       target: development
     container_name: lusilearn-api
+    env_file:
+      - .env
     ports:
       - "${PORT}:4000"
     volumes:
@@ -89,16 +95,15 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # - REDIS_HOST=redis
+      # - REDIS_PORT=${REDIS_PORT}
+      # - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET}
       - AI_SERVICE_URL=${AI_SERVICE_URL}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     command: >
       sh -c "
@@ -106,9 +111,6 @@ services:
         npm run build --workspace=@lusilearn/config &&
         npm run build --workspace=@lusilearn/shared-types &&
         npm run build --workspace=@lusilearn/api &&
-        cd apps/api &&
-        DATABASE_URL=postgresql://postgres:password@postgres:5432/lusilearn npx node-pg-migrate up &&
-        cd ../.. &&
         node apps/api/dist/apps/api/src/index.js
       "
 
@@ -119,6 +121,8 @@ services:
       dockerfile: apps/ai-service/Dockerfile
       target: development
     container_name: lusilearn-ai-service
+    env_file:
+      - .env
     ports:
       - "8001:8001"
     volumes:
@@ -156,14 +160,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     command: uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload
 
 volumes:
   postgres_data:
-  redis_data:
-  elasticsearch_data:
+  # redis_data:
+  # elasticsearch_data:
 
 networks:
   default:
